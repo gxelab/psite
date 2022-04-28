@@ -5,19 +5,41 @@ import click
 import pandas as pd
 import numpy as np
 import pysam
+from utils import read_fasta, chunk_iter, rev_comp
 
 
-# main function
-@click.command()
+CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
+@click.command(context_settings=CLICK_CS)
+@click.argument('path_ref', type=click.STRING)
+@click.argument('path_bam', type=click.STRING)
+@click.argument('path_model', type=click.STRING)
+@click.argument('path_out', type=click.STRING)
+@click.option('-f', '--out_format', default='bam',
+              type=click.Choice(['bam', 'sam']),
+              help='P-site alignemnt output format')
+@click.option('-c', '--chunk_size', type=click.INT, default=65536,
+              help='chunk size for prediction batch')
+@click.option('-i', '--ignore_txversion', is_flag=True, default=False,
+              help='either to ignore trasncript version in ".\d+" format')
+@click.option('-l', '--rlen_min', type=click.INT, default=25,
+              help='lower bound for RPF mapped length')
+@click.option('-u', '--rlen_max', type=click.INT, default=35,
+              help='upper bound for mapped read length')
+@click.option('-n', '--nts', type=click.INT, default=3,
+              help='fanking nucleotides to consider at each side')
+@click.option('-p', '--threads', type=click.INT, default=1,
+              help='Number of threads used for prediction')
 def pbam(path_ref, path_bam, path_model, path_out, out_format='bam',
             rlen_min=25, rlen_max=35, ignore_txversion=False, nts=3,
             chunk_size=1024, threads=1):
     """
-    load pre-trained model and predict P-site offsets
+    generate bam with only P-site regions
     
-    TODO
-    - how to deal with indels in cigar string!!!
-      Interference would be minor, but better to consider
+    \b
+    path_ref   : reference transcriptome (fasta) matching the bam
+    path_bam   : alignments of RPFs to reference transcriptome
+    path_model : path to save the fitted model
+    path_out   : output path of bam with P-site regions only
     """
     print('...load ref and model', file=sys.stderr)
     # gzipped fasta is detected automatically

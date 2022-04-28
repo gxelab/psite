@@ -26,7 +26,7 @@ CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.option('-n', '--nts', type=click.INT, default=3,
               help='fanking nucleotides to consider at each side')
 @click.option('-p', '--threads', type=click.INT, default=1,
-              help='Number of threads used for model fitting')
+              help='Number of threads used for prediction')
 def predict(path_ref, path_bam, path_model, path_out,
             ignore_txversion=False, nts=3, chunk_size=1024,
             rlen_min=25, rlen_max=35, threads=1):
