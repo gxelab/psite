@@ -6,24 +6,86 @@ import numpy as np
 import pandas as pd
 import pysam
 from sklearn.ensemble import RandomForestClassifier
-from utils import read_fasta, read_txinfo, get_txrep
+from utils import read_fasta, read_txinfo
 
 
-@click.command()
+def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
+    """Get representative transcript per gene"""
+    if 'gene_biotype' in txinfo.columns:
+        txinfo = txinfo.loc[txinfo['gene_biotype'] == 'protein_coding']
+    if 'transcript_biotype' in txinfo.columns:
+        txinfo = txinfo.loc[txinfo['transcript_biotype'] == 'protein_coding']
+    if type_rep == 'longest':
+        txrep = txinfo.sort_values(['gene_id', 'tx_len'], ascending=[True, False])
+        txrep = txrep.groupby('gene_id').first().reset_index()
+    elif type_rep == 'principal':
+        txrep = txinfo.loc[(txinfo['txtype'] == 'principal')]
+    elif type_rep == 'salmon':   # salmon_output_dir/quant.sf
+        try:
+            tx_quant = pd.read_csv(path_exp, sep='\t')
+            if ignore_version:
+                tx_quant['Name'] = tx_quant['Name'].map(strip_version)
+            tx_quant = tx_quant.merge(
+                txinfo[['gene_id', 'tx_name']], how='inner', left_on='Name', right_on='tx_name')
+            tx_quant = tx_quant.sort_values(by=['gene_id', 'TPM'], ascending=[True, False])
+            tx_quant = tx_quant.groupby('gene_id').first().reset_index()
+            txrep = txinfo.loc[(txinfo['tx_name'].isin(tx_quant['Name']))]
+        except:
+            print('input salmon quant results incorrect', file=sys.stderr)
+            exit()
+    elif type_rep == 'kallisto':  # kallisto_output_dir/abundance.tsv
+        try:
+            tx_quant = pd.read_csv(path_exp, sep='\t')
+            if ignore_version:
+                tx_quant['target_id'] = tx_quant['target_id'].map(strip_version)
+            tx_quant = tx_quant.merge(
+                txinfo[['gene_id', 'tx_name']], how='inner', left_on='target_id', right_on='tx_name')
+            tx_quant = tx_quant.sort_values(by=['gene_id', 'tpm'], ascending=[True, False])
+            tx_quant = tx_quant.groupby('gene_id').first().reset_index()
+            txrep = txinfo.loc[(txinfo['tx_name'].isin(tx_quant['target_id']))]
+        except:
+            print('input kallisto quant results incorrect', file=sys.stderr)
+            exit()
+    else:
+        print('Incorrect txinfo_rep option!', file=sys.stderr)
+        exit()
+    return txrep
+
+
+CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
+@click.command(context_settings=CLICK_CS)
 @click.argument('path_ref', type=click.STRING)
 @click.argument('path_bam', type=click.STRING)
 @click.argument('path_model', type=click.STRING)
 @click.argument('path_txinfo', type=click.STRING)
+@click.option('-s', 'sep_txinfo', type=click.STRING, default='auto',
+              help='field delimiter of the txinfo file')
+@click.option('-t', '--type_ref', default='longest',
+              type=click.Choice(['longest', 'principal', 'kallisto', 'salmon']),
+              help='type of representative transcripts')
+@click.option('-e', '--path_exp', type=click.STRING, default=None,
+              help='lower bound for RPF mapped length')
+@click.option('-i', '--ignore_txversion', is_flag=True, default=False,
+              help='either to ignore trasncript version in ".\d+" format')
+@click.option('-l', '--rlen_min', type=click.INT, default=25,
+              help='lower bound for RPF mapped length')
+@click.option('-u', '--rlen_max', type=click.INT, default=35,
+              help='upper bound for mapped read length')
+@click.option('-n', '--nts', type=click.INT, default=3,
+              help='fanking nucleotides to consider at each side')
+@click.option('-p', '--threads', type=click.INT, default=1,
+              help='Number of threads used for model fitting')
 def train(path_ref, path_bam, path_model, path_txinfo,
           sep_txinfo='auto', type_ref='longest', path_exp=None, ignore_txversion=True,
           rlen_min=25, rlen_max=35, nts=3, threads=1):
     """
-    Fit the random forest model
+    train a random forest model of p-site offsets
 
-    PATH_REF: reference transcriptome (fasta) matching the bam
-    PATH_BAM: alignments of RPFs to reference transcriptome
-    PATH_model: path to save the fitted model
-    PATH_TXINFO: basic info of transcripts
+    \b
+    path_ref   : reference transcriptome (fasta) matching the bam
+    path_bam   : alignments of RPFs to reference transcriptome
+    path_model : path to save the fitted model
+    path_txinfo: transcriptome annotation
     """
     # reference transcriptome
     print('...Load reference fasta', file=sys.stderr)
