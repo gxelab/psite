@@ -20,7 +20,7 @@ CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.option('-c', '--chunk_size', type=click.INT, default=65536,
               help='chunk size for prediction batch')
 @click.option('-i', '--ignore_txversion', is_flag=True, default=False,
-              help='either to ignore trasncript version in ".\d+" format')
+              help='whether to ignore trasncript version in ".\d+" format')
 @click.option('-l', '--rlen_min', type=click.INT, default=25,
               help='lower bound for RPF mapped length')
 @click.option('-u', '--rlen_max', type=click.INT, default=35,
