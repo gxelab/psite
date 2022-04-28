@@ -22,11 +22,24 @@ def bw_write_chrom(bw, chrom, cov):
     return
 
 
-@click.command()
-@click.argument('name', help='ddd')
+CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
+@click.command(context_settings=CLICK_CS)
+@click.argument('path_bam', type=click.STRING)
+@click.argument('prefix', type=click.STRING)
+@click.option('-l', '--rlen_min', type=click.INT, default=25,
+              help='lower bound for RPF mapped length')
+@click.option('-u', '--rlen_max', type=click.INT, default=35,
+              help='upper bound for mapped read length')
+@click.option('-q', '--mapq_min', type=click.INT, default=10,
+              help='minimum mapping quality')
+@click.option('-i', '--ignore_supp', is_flag=True, default=False,
+              help='whether to ignore supplementary alignments')
 def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10, ignore_supp=True):
     """
     calculate the coverage for plus strand and minus strand seperately
+
+    path_bam: aligment bam file with the PS tag (for P-site offset)
+    prefix  : output prefix of P-site coverage tracks in bigWig format
     """
     # try to open bam file
     bam = pysam.AlignmentFile(path_bam)
