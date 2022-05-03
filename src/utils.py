@@ -7,6 +7,9 @@ from itertools import chain, islice
 import pandas as pd
 from Bio import SeqIO
 
+# click setting ###############################################################
+CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
+
 # reading #####################################################################
 def smart_open(path):
     """open plain text or gzipped file"""

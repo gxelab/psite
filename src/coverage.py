@@ -2,6 +2,7 @@ import click
 import numpy as np
 import pysam
 import pyBigWig
+from utils import CLICK_CS
 
 
 def bw_write_chrom(bw, chrom, cov):
@@ -22,7 +23,6 @@ def bw_write_chrom(bw, chrom, cov):
     return
 
 
-CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.command(context_settings=CLICK_CS)
 @click.argument('path_bam', type=click.STRING)
 @click.argument('prefix', type=click.STRING)
@@ -92,3 +92,7 @@ def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10, ignore_sup
     bw_fw.close()
     bw_rc.close()
     return
+
+
+if __name__ == '__main__':
+    coverage()

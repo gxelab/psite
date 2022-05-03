@@ -5,10 +5,9 @@ import click
 import pandas as pd
 import numpy as np
 import pysam
-from utils import read_fasta, chunk_iter, rev_comp
+from utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
 
 
-CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.command(context_settings=CLICK_CS)
 @click.argument('path_ref', type=click.STRING)
 @click.argument('path_bam', type=click.STRING)
@@ -118,3 +117,7 @@ def pbam(path_ref, path_bam, path_model, path_out, out_format='bam',
                 output.write(a)
         output.close()
     return
+
+
+if __name__ == '__main__':
+    pbam()

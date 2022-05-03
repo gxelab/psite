@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pysam
 from sklearn.ensemble import RandomForestClassifier
-from utils import read_fasta, read_txinfo, strip_version
+from utils import read_fasta, read_txinfo, strip_version, CLICK_CS
 
 
 def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
@@ -52,7 +52,6 @@ def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
     return txrep
 
 
-CLICK_CS = dict(help_option_names=['-h', '--help'], show_default=True)
 @click.command(context_settings=CLICK_CS)
 @click.argument('path_ref', type=click.STRING)
 @click.argument('path_bam', type=click.STRING)
@@ -177,3 +176,7 @@ def train(path_ref, path_bam, path_model, path_txinfo,
     pickle.dump(rfc, open(path_model, 'wb'))
     print('...Done!', file=sys.stderr)
     return
+
+
+if __name__ == '__main__':
+    train()
