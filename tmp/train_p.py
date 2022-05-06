@@ -1,6 +1,6 @@
 import sys
 import pickle
-import multiprocessing as mp
+from multiprocessing import Pool
 
 import click
 import numpy as np
@@ -117,6 +117,7 @@ def train(path_ref, path_bam, path_model, path_txinfo,
     
     def process_align(align):
         """helper function to process an alignment"""
+        # print(align.query_name, file=sys.stderr)
         # alignment qc
         if align.is_reverse:
             return ()
@@ -143,14 +144,19 @@ def train(path_ref, path_bam, path_model, path_txinfo,
         return (align.query_name, label, align.query_alignment_length, sqleft, sqright)
 
 
-    # parse alignments
-    print('...parse alignments', file=sys.stderr)
-    with pysam.AlignmentFile(path_bam) as bam, mp.Pool(processes=threads) as pool:
-        aligns = pool.imap(process_align, bam, chunksize=1024)
+    # parse alignments (consider using chunksize)
+    print(f'...parse alignments using {threads} threads', file=sys.stderr)
+    with pysam.AlignmentFile(path_bam, 'rb') as bam:
+        pool = Pool(processes=threads)
+        aligns = pool.imap(process_align, bam, chunksize=1)
+        print(next(aligns))
+        aligns = [i for i in aligns if i]  # keep non-empty entries
+        pool.close()
+        pool.join()
 
     # prepare training data
     print('...prepare training data', file=sys.stderr)
-    aligns = pd.DataFrame([i for i in aligns if i])  # keep non-empty entries
+    aligns = pd.DataFrame(aligns)
     aligns.set_axis(['read_name', 'label', 'qwidth', 'sqleft', 'sqright'], axis=1, inplace=True)
     aligns.drop_duplicates(subset=['read_name'], inplace=True)
 
