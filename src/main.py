@@ -6,6 +6,7 @@ from coverage import coverage
 from pbam import pbam
 
 @click.group()
+@click.help_option("--help", "-h")
 def psite():
     """main interface"""
     pass
