@@ -1,12 +1,11 @@
 args <- commandArgs(trailingOnly = TRUE)
-cat(paste(c('Input', cargs, '\n'), collapse = '\n'), file = stderr())
+cat(paste(c('...input gtf and output path:', args, '\n'), collapse = '\n'), file = stderr())
 
 library(data.table)
 library(GenomicFeatures)
 library(rtracklayer)
 
-#' extract transcript info from annotations in GTF format
-extractGeneInfo <- function(gtf_path){
+extract_txinfo <- function(gtf_path){
     require(GenomicFeatures)
     require(rtracklayer)
     txdb <- makeTxDbFromGFF(gtf_path)
@@ -27,5 +26,5 @@ extractGeneInfo <- function(gtf_path){
     return(res)
 }
 
-dtt <- extractGeneInfo(args[1])
+dtt <- extract_txinfo(args[1])
 fwrite(dtt, file = args[2], sep = '\t')
