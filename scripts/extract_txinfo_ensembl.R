@@ -21,6 +21,20 @@ extract_txinfo <- function(gtf_path){
     res <- as.data.table(res)
     res <- res[order(gene_id, tx_name, protein_id)][!duplicated(tx_name)]
     setnames(res, 'seqnames', 'chrom')
+    
+    gtf_cmd <- paste(ifelse(endsWith(gtf_path, 'gz'), 'zcat', 'cat'), gtf_path, '| grep -v "^#"')
+    gtf_dtt <- fread(cmd = gtf_cmd, header = FALSE)
+    
+    gtf_dtt[, tx_name := sub('.*?transcript_id "(ENST\\d+)".*', '\\1', V9)]
+    gtf_dtt[!grepl("^ENST\\d+$", tx_name), tx_name := NA_character_]
+    gtf_dtt[, gene_id := sub('.*?gene_id "(ENSG\\d+)".*', '\\1', V9)]
+    
+    txproblem <- merge(gtf_dtt[V3 == 'transcript'][grepl('cds_start_NF', V9), .(tx_name, cds_start_nf = TRUE)],
+          gtf_dtt[V3 == 'transcript'][grepl('cds_end_NF', V9), .(tx_name, cds_end_nf = TRUE)],
+          by = 'tx_name', all = TRUE)
+    res <- merge(res, txproblem, by = 'tx_name', all = TRUE)
+    res[is.na(cds_start_nf), cds_start_nf := FALSE]
+    res[is.na(cds_end_nf), cds_end_nf := FALSE]
     return(res)
 }
 
