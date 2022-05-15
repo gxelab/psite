@@ -29,12 +29,18 @@ extract_txinfo <- function(gtf_path){
     gtf_dtt[!grepl("^ENST\\d+$", tx_name), tx_name := NA_character_]
     gtf_dtt[, gene_id := sub('.*?gene_id "(ENSG\\d+)".*', '\\1', V9)]
     
-    txproblem <- merge(gtf_dtt[V3 == 'transcript'][grepl('cds_start_NF', V9), .(tx_name, cds_start_nf = TRUE)],
+    cds_problem <- merge(gtf_dtt[V3 == 'transcript'][grepl('cds_start_NF', V9), .(tx_name, cds_start_nf = TRUE)],
           gtf_dtt[V3 == 'transcript'][grepl('cds_end_NF', V9), .(tx_name, cds_end_nf = TRUE)],
           by = 'tx_name', all = TRUE)
+    mrna_problem <- merge(gtf_dtt[V3 == 'transcript'][grepl('mRNA_start_NF', V9), .(tx_name, mrna_start_nf = TRUE)],
+                         gtf_dtt[V3 == 'transcript'][grepl('mRNA_end_NF', V9), .(tx_name, mrna_end_nf = TRUE)],
+                         by = 'tx_name', all = TRUE)
+    txproblem <- merge(cds_problem, mrna_problem, by = 'tx_name', all = TRUE)
     res <- merge(res, txproblem, by = 'tx_name', all = TRUE)
     res[is.na(cds_start_nf), cds_start_nf := FALSE]
     res[is.na(cds_end_nf), cds_end_nf := FALSE]
+    res[is.na(mrna_start_nf), mrna_start_nf := FALSE]
+    res[is.na(mrna_end_nf), mrna_end_nf := FALSE]
     return(res)
 }
 
