@@ -25,9 +25,9 @@ extract_txinfo <- function(gtf_path){
     gtf_cmd <- paste(ifelse(endsWith(gtf_path, 'gz'), 'zcat', 'cat'), gtf_path, '| grep -v "^#"')
     gtf_dtt <- fread(cmd = gtf_cmd, header = FALSE)
     
-    gtf_dtt[, tx_name := sub('.*?transcript_id "(ENST\\d+)".*', '\\1', V9)]
-    gtf_dtt[!grepl("^ENST\\d+$", tx_name), tx_name := NA_character_]
-    gtf_dtt[, gene_id := sub('.*?gene_id "(ENSG\\d+)".*', '\\1', V9)]
+    gtf_dtt[, tx_name := sub('.*?transcript_id "(ENS[A-Z]*T\\d+)".*', '\\1', V9)]
+    gtf_dtt[!grepl("^ENS[A-Z]*T\\d+$", tx_name), tx_name := NA_character_]
+    gtf_dtt[, gene_id := sub('.*?gene_id "(ENS[A-Z]*G\\d+)".*', '\\1', V9)]
     
     cds_problem <- merge(gtf_dtt[V3 == 'transcript'][grepl('cds_start_NF', V9), .(tx_name, cds_start_nf = TRUE)],
           gtf_dtt[V3 == 'transcript'][grepl('cds_end_NF', V9), .(tx_name, cds_end_nf = TRUE)],
