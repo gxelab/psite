@@ -38,7 +38,8 @@ def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10, ignore_sup
     """
     calculate the coverage for plus strand and minus strand seperately
 
-    path_bam: aligment bam file with the PS tag (for P-site offset)
+    \b
+    path_bam: sorted aligment bam file with the PS tag (for P-site offset)
     prefix  : output prefix of P-site coverage tracks in bigWig format
     """
     # try to open bam file
