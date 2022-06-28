@@ -73,10 +73,12 @@ def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
 @click.option('-n', '--nts', type=click.INT, default=3,
               help='fanking nucleotides to consider at each side')
 @click.option('-p', '--threads', type=click.INT, default=1,
-              help='Number of threads used for model fitting')
+              help='number of threads used for model fitting')
+@click.option('-k', '--keep', is_flag=True, default=False,
+              help='whether to to keep intermediate results')
 def train(path_ref, path_bam, path_model, path_txinfo,
           sep_txinfo='auto', type_ref='longest', path_exp=None, ignore_txversion=True,
-          rlen_min=25, rlen_max=35, nts=3, threads=1):
+          rlen_min=25, rlen_max=35, nts=3, threads=1, keep=False):
     """
     train a random forest model of p-site offsets
 
@@ -165,6 +167,9 @@ def train(path_ref, path_bam, path_model, path_txinfo,
     scols += [f'{i}{j}_{k}' for i in ['s', 'e'] for j in range(2*nts) for k in 'ACGT']
     cols_to_remove = [ col for col in features.columns if col not in scols]
     features.drop(columns=cols_to_remove, inplace=True)
+
+    if keep == True:
+        features.to_csv(f'{path_model}.train.tsv', sep='\t', index=False)
 
     X = features.drop(columns='label').to_numpy()
     y = features[['label']].to_numpy().flatten()
