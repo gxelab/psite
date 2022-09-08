@@ -10,6 +10,7 @@ Model-based inference of P-site offsets for RPFs
 - `sklearn` >= 1.1.1 (RandomForest model)
 - `pysam` >= 0.17.0 (BAM parsing)
 - `click` >= 8.1.2 (Commandline arguments)
+- `pyBigWig` >= 0.3.18 (Writing bigWig)
 
 #### Installation
 This package is still under development and can be installed and uninstalled by
