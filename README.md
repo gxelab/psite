@@ -52,7 +52,7 @@ Predict RPF P-site offsets (offset is stored in `PS` tag)
 psite predict -n2 -i all_transcripts.fa  sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl sample_RPF.transcriptome.psite.bam
 
 # with genome bam
-psite predict -n2 -i all_transcripts.fa  sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genome.psite.bam
+psite predict -n2 -i genome.fa  sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genome.psite.bam
 ```
 
 Calculate genome-wide P-site coverage
