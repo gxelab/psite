@@ -2,7 +2,7 @@ import click
 import numpy as np
 import pysam
 import pyBigWig
-from .utils import CLICK_CS
+from psite.utils import CLICK_CS
 
 
 def bw_write_chrom(bw, chrom, cov):

@@ -5,7 +5,7 @@ import click
 import pandas as pd
 import numpy as np
 import pysam
-from .utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
+from psite.utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
 
 
 @click.command(context_settings=CLICK_CS)

@@ -1,9 +1,9 @@
 import click
 
-from .train import train
-from .predict import predict
-from .coverage import coverage
-from .pbam import pbam
+from psite.train import train
+from psite.predict import predict
+from psite.coverage import coverage
+from psite.pbam import pbam
 
 @click.group()
 @click.help_option("--help", "-h")

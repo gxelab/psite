@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pysam
 from sklearn.ensemble import RandomForestClassifier
-from .utils import read_fasta, read_txinfo, strip_version, CLICK_CS
+from psite.utils import read_fasta, read_txinfo, strip_version, CLICK_CS
 
 
 def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
