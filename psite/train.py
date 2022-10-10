@@ -1,13 +1,12 @@
 import sys
 import pickle
-from multiprocessing import Pool
 
 import click
 import numpy as np
 import pandas as pd
 import pysam
 from sklearn.ensemble import RandomForestClassifier
-from utils import read_fasta, read_txinfo, strip_version, CLICK_CS
+from .utils import read_fasta, read_txinfo, strip_version, CLICK_CS
 
 
 def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
@@ -74,10 +73,12 @@ def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
 @click.option('-n', '--nts', type=click.INT, default=3,
               help='fanking nucleotides to consider at each side')
 @click.option('-p', '--threads', type=click.INT, default=1,
-              help='Number of threads used for model fitting')
+              help='number of threads used for model fitting')
+@click.option('-k', '--keep', is_flag=True, default=False,
+              help='whether to to keep intermediate results')
 def train(path_ref, path_bam, path_model, path_txinfo,
           sep_txinfo='auto', type_ref='longest', path_exp=None, ignore_txversion=True,
-          rlen_min=25, rlen_max=35, nts=3, threads=1):
+          rlen_min=25, rlen_max=35, nts=3, threads=1, keep=False):
     """
     train a random forest model of p-site offsets
 
@@ -115,62 +116,60 @@ def train(path_ref, path_bam, path_model, path_txinfo,
     print(txrep.head(), file=sys.stderr)
     print(list(ref.keys())[:6], file = sys.stderr)
     
-    def process_align(align):
-        """helper function to process an alignment"""
-        # print(align.query_name, file=sys.stderr)
-        # alignment qc
-        if align.is_reverse:
-            return ()
-        if align.query_alignment_length < rlen_min or align.query_alignment_length > rlen_max:
-            return ()
-        if align.reference_name not in txrep['tx_name']:
-            return ()
-        tx_info = txrep.loc[align.reference_name]
-        if align.reference_start < nts or align.reference_end > tx_info['tx_len'] - nts:
-            return ()
-        # keep alignments overlapping with start codon or stop codon (1-based)
-        # reference_start: 0-based; reference_end: 1-based rightmost coordinate
-        dist_start = tx_info['start_codon'] - align.reference_start - 1
-        dist_stop = tx_info['stop_codon'] - align.reference_start - 4
-        if dist_start >= 11 and dist_start <= 14:
-            label = dist_start
-        elif dist_stop >= 10 and dist_stop <= 13:
-            label = dist_stop
-        else: # not overlapping with start/stop in given offset range
-            return ()
-        seq = ref[align.reference_name]
-        sqleft = seq[(align.reference_start - nts):(align.reference_start + nts)]
-        sqright = seq[(align.reference_end - nts):(align.reference_end + nts)]
-        return (align.query_name, label, align.query_alignment_length, sqleft, sqright)
+    # parse alignments
+    print('...parse alignments', file=sys.stderr)
+    reads = set()
+    col_qwidth = list()
+    col_sqleft = list()
+    col_sqright = list()
+    col_label = list()
 
-
-    # parse alignments (consider using chunksize)
-    print(f'...parse alignments using {threads} threads', file=sys.stderr)
-    with pysam.AlignmentFile(path_bam, 'rb') as bam:
-        pool = Pool(processes=threads)
-        aligns = pool.imap(process_align, bam, chunksize=1)
-        print(next(aligns))
-        aligns = [i for i in aligns if i]  # keep non-empty entries
-        pool.close()
-        pool.join()
+    with pysam.AlignmentFile(path_bam) as bam:
+        for align in bam:
+            if align.query_name in reads:
+                continue
+            # alignment qc
+            if align.is_reverse:
+                continue
+            if align.query_alignment_length < rlen_min or align.query_alignment_length > rlen_max:
+                continue
+            if align.reference_name not in txrep['tx_name']:
+                continue
+            tx_info = txrep.loc[align.reference_name]
+            seq = ref[align.reference_name]
+            if align.reference_start < nts or align.reference_end > tx_info['tx_len'] - nts:
+                continue
+            reads.add(align.query_name)
+            # keep alignments overlapping with start codon or stop codon (1-based)
+            # reference_start: 0-based; reference_end: 1-based rightmost coordinate
+            dist_start = tx_info['start_codon'] - align.reference_start - 1
+            dist_stop = tx_info['stop_codon'] - align.reference_start - 4
+            if dist_start >= 11 and dist_start <= 14:
+                label = dist_start
+            elif dist_stop >= 10 and dist_stop <= 13:
+                label = dist_stop
+            else: # not overlapping with start/stop in given offset range
+                continue
+            col_qwidth.append(align.query_alignment_length)
+            col_sqleft.append(seq[(align.reference_start - nts):(align.reference_start + nts)])
+            col_sqright.append(seq[(align.reference_end - nts):(align.reference_end + nts)])
+            col_label.append(label)
 
     # prepare training data
     print('...prepare training data', file=sys.stderr)
-    aligns = pd.DataFrame(aligns)
-    aligns.set_axis(['read_name', 'label', 'qwidth', 'sqleft', 'sqright'], axis=1, inplace=True)
-    aligns.drop_duplicates(subset=['read_name'], inplace=True)
-
-    sqleft = pd.DataFrame([list(i) for i in aligns['sqleft']]).add_prefix('s')
-    sqright = pd.DataFrame([list(i) for i in aligns['sqright']]).add_prefix('e')
-    aligns.drop(['read_name', 'sqleft', 'sqright'], inplace=True)
-    aligns = pd.concat([aligns, sqleft, sqright], axis = 1)
-
+    sqleft = pd.DataFrame([list(i) for i in col_sqleft]).add_prefix('s')
+    sqright = pd.DataFrame([list(i) for i in col_sqright]).add_prefix('e')
+    training_data = pd.DataFrame({'label': col_label, 'qwidth': col_qwidth})
+    training_data = pd.concat([training_data, sqleft, sqright], axis = 1)
     # prevent ambiguous base 'N' being used in training data
-    features = pd.get_dummies(aligns)
+    features = pd.get_dummies(training_data)
     scols = ['label', 'qwidth'] 
     scols += [f'{i}{j}_{k}' for i in ['s', 'e'] for j in range(2*nts) for k in 'ACGT']
     cols_to_remove = [ col for col in features.columns if col not in scols]
     features.drop(columns=cols_to_remove, inplace=True)
+
+    if keep == True:
+        features.to_csv(f'{path_model}.train.tsv', sep='\t', index=False)
 
     X = features.drop(columns='label').to_numpy()
     y = features[['label']].to_numpy().flatten()

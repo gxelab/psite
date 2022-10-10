@@ -1,8 +1,8 @@
-import sys
-import argparse
+import click
 import numpy as np
 import pysam
 import pyBigWig
+from .utils import CLICK_CS
 
 
 def bw_write_chrom(bw, chrom, cov):
@@ -23,11 +23,24 @@ def bw_write_chrom(bw, chrom, cov):
     return
 
 
+@click.command(context_settings=CLICK_CS)
+@click.argument('path_bam', type=click.STRING)
+@click.argument('prefix', type=click.STRING)
+@click.option('-l', '--rlen_min', type=click.INT, default=25,
+              help='lower bound for RPF mapped length')
+@click.option('-u', '--rlen_max', type=click.INT, default=35,
+              help='upper bound for mapped read length')
+@click.option('-q', '--mapq_min', type=click.INT, default=10,
+              help='minimum mapping quality')
+@click.option('-i', '--ignore_supp', is_flag=True, default=False,
+              help='whether to ignore supplementary alignments')
 def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10, ignore_supp=True):
     """
     calculate the coverage for plus strand and minus strand seperately
 
-    
+    \b
+    path_bam: sorted aligment bam file with the PS tag (for P-site offset)
+    prefix  : output prefix of P-site coverage tracks in bigWig format
     """
     # try to open bam file
     bam = pysam.AlignmentFile(path_bam)
@@ -83,26 +96,4 @@ def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10, ignore_sup
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        prog = 'python psite_cov.py',
-        description = 'Calculate P-site coverage',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    # required arguments (input and output)
-    parser.add_argument('bam', metavar='bam',
-                        help='aligment bam file with the PS tag (for P-site offset)')
-    parser.add_argument('prefix', metavar='prefix',
-                        help='output prefix of P-site coverage tracks in bigWig format')
-    # optional arguments
-    parser.add_argument('-l', '--lower', type=int, default=25,
-                        help='lower bound for RPF mapped length')
-    parser.add_argument('-u', '--upper', type=int, default=35,
-                        help='upper bound for RPF mapped length')
-    parser.add_argument('-q', '--mapq_min', type=int, default=35,
-                        help='minimum mapping quality')
-    parser.add_argument('-i', '--ignore_supp', action='store_true',
-                        help='Whether to ignore supplementary alignments')
-    args = parser.parse_args()
-    coverage(path_bam=args.bam, prefix=args.prefix,
-             rlen_min=args.lower, rlen_max=args.upper,
-             mapq_min=args.mapq_min, ignore_supp=args.ignore_supp)
+    coverage()

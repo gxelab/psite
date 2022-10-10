@@ -1,79 +1,44 @@
 import sys
-import argparse
-import gzip
 import pickle
-from datetime import datetime
-from itertools import chain, islice
 
+import click
 import pandas as pd
 import numpy as np
 import pysam
-from Bio import SeqIO
+from .utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
 
 
-# helper functions
-def smart_open(path):
-    """open plain text or gzipped file"""
-    if path[-2:] == 'gz':
-        return gzip.open(path, 'rt')
-    else:
-        return open(path, 'rt')
-
-
-def strip_version(tx_name):
-    """Strip transcript version"""
-    return re.sub('\.\d+$', '', tx_name)
-
-
-def read_fasta(path, ignore_version=False):
-    """Construct a dict of input fasta"""
-    fa = dict()
-    with smart_open(path) as f:
-        for record in SeqIO.parse(f, 'fasta'):
-            if ignore_version:
-                record.id = strip_version(record.id)
-            fa[record.id] = str(record.seq)
-    return fa
-
-
-WC_PAIRING = str.maketrans('ACGTN', 'TGCAN')
-def rev_comp(s):
-    """reverse complementation DNA string"""
-    return s[::-1].translate(WC_PAIRING)
-
-
-def chunk_iter(iterable, chunk_size=1024):
-    """
-    iterate by fixed block size
-    
-    Yield an iterator for each block. If the last chunk do not have enough
-    items, all the remaining items is return as the last chunk.
-    reference: https://stackoverflow.com/a/8998040/3926543
-    """
-    it = iter(iterable)
-    while True:
-        chunk = islice(it, chunk_size)
-        try:
-            fist_element = next(chunk)
-        except StopIteration:
-            return
-        yield chain((fist_element,), chunk)
-
-        
-def time():
-    return str(datetime.now())
-
-
-# main function
-def predict(path_ref, path_bam, path_model, path_out, out_format='bam',
+@click.command(context_settings=CLICK_CS)
+@click.argument('path_ref', type=click.STRING)
+@click.argument('path_bam', type=click.STRING)
+@click.argument('path_model', type=click.STRING)
+@click.argument('path_out', type=click.STRING)
+@click.option('-f', '--out_format', default='bam',
+              type=click.Choice(['bam', 'sam']),
+              help='P-site alignemnt output format')
+@click.option('-c', '--chunk_size', type=click.INT, default=65536,
+              help='chunk size for prediction batch')
+@click.option('-i', '--ignore_txversion', is_flag=True, default=False,
+              help='whether to ignore trasncript version in ".\d+" format')
+@click.option('-l', '--rlen_min', type=click.INT, default=25,
+              help='lower bound for RPF mapped length')
+@click.option('-u', '--rlen_max', type=click.INT, default=35,
+              help='upper bound for mapped read length')
+@click.option('-n', '--nts', type=click.INT, default=3,
+              help='fanking nucleotides to consider at each side')
+@click.option('-p', '--threads', type=click.INT, default=1,
+              help='Number of threads used for prediction')
+def pbam(path_ref, path_bam, path_model, path_out, out_format='bam',
             rlen_min=25, rlen_max=35, ignore_txversion=False, nts=3,
             chunk_size=1024, threads=1):
     """
-    load pre-trained model and predict P-site offsets
+    generate bam with only P-site regions
     
-    TODO
-    - how to deal with indels in cigar string!!!
-      Interference would be minor, but better to consider
+    \b
+    path_ref   : reference transcriptome (fasta) matching the bam
+    path_bam   : alignments of RPFs to reference transcriptome
+    path_model : path to save the fitted model
+    path_out   : output path of bam with P-site regions only
     """
     print('...load ref and model', file=sys.stderr)
     # gzipped fasta is detected automatically
@@ -155,45 +120,4 @@ def predict(path_ref, path_bam, path_model, path_out, out_format='bam',
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        prog = 'python psite_predict.py',
-        description = 'Predict P-site offset with the given model',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-     # required arguments (input and output)
-    parser.add_argument('ref', metavar='ref',
-                        help='Reference transcriptome (fasta) matching the bam')
-    parser.add_argument('bam', metavar='bam',
-                        help='alignments of RPFs to reference transcriptome')
-    parser.add_argument('model', metavar='model',
-                        help='pre-trained RFC model')
-    parser.add_argument('output', metavar='output',
-                       help='output path of bam/sam with PS (for P-site) tag')
-    # optional arguments
-    parser.add_argument('-f', '--out_format', type=str, default='bam',
-                        choices=('bam', 'sam'),
-                        help='P-site alignemnt output format')
-    parser.add_argument('-c', '--chunk_size', type=int, default=65536,
-                        help='chunk size for prediction batch')
-    parser.add_argument('-l', '--lower', type=int, default=25,
-                        help='lower bound for RPF mapped length')
-    parser.add_argument('-u', '--upper', type=int, default=35,
-                        help='upper bound for mapped read length')
-    parser.add_argument('-i', '--ignore_txversion', action='store_true',
-                        help='either to ignore trasncript version in ".\d+" format')
-    parser.add_argument('-n', '--nts', type=int, default=3,
-                        help='fanking nucleotides to consider at each side')
-    parser.add_argument('-p', '--threads', type=int, default=1,
-                        help='Number of threads used for prediction')
-    args = parser.parse_args()
-    predict(path_ref=args.ref,
-            path_bam=args.bam,
-            path_model=args.model,
-            path_out=args.bam_out,
-            out_format=args.out_format,
-            ignore_txversion=args.ignore_txversion,
-            nts=args.nts,
-            chunk_size=args.chunk_size,
-            rlen_min=args.lower,
-            rlen_max=args.upper,
-            threads=args.threads)
+    pbam()

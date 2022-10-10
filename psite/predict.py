@@ -5,7 +5,7 @@ import click
 import pandas as pd
 import numpy as np
 import pysam
-from utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
+from .utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
 
 
 @click.command(context_settings=CLICK_CS)
@@ -13,9 +13,6 @@ from utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
 @click.argument('path_bam', type=click.STRING)
 @click.argument('path_model', type=click.STRING)
 @click.argument('path_out', type=click.STRING)
-@click.option('-f', '--out_format', default='bam',
-              type=click.Choice(['bam', 'sam']),
-              help='P-site alignemnt output format')
 @click.option('-c', '--chunk_size', type=click.INT, default=65536,
               help='chunk size for prediction batch')
 @click.option('-i', '--ignore_txversion', is_flag=True, default=False,
@@ -28,36 +25,32 @@ from utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
               help='fanking nucleotides to consider at each side')
 @click.option('-p', '--threads', type=click.INT, default=1,
               help='Number of threads used for prediction')
-def pbam(path_ref, path_bam, path_model, path_out, out_format='bam',
-            rlen_min=25, rlen_max=35, ignore_txversion=False, nts=3,
-            chunk_size=1024, threads=1):
+def predict(path_ref, path_bam, path_model, path_out,
+            ignore_txversion=False, nts=3, chunk_size=1024,
+            rlen_min=25, rlen_max=35, threads=1):
     """
-    generate bam with only P-site regions
+    load pre-trained model and predict P-site offsets
     
+
     \b
     path_ref   : reference transcriptome (fasta) matching the bam
     path_bam   : alignments of RPFs to reference transcriptome
     path_model : path to save the fitted model
-    path_out   : output path of bam with P-site regions only
+    path_out   : output path of bam with PS (for P-site) tag 
     """
     print('...load ref and model', file=sys.stderr)
-    # gzipped fasta is detected automatically
     ref = read_fasta(path_ref, ignore_version=ignore_txversion)
     model = pickle.load(open(path_model, 'rb'))
     model.n_jobs = threads
-    
+
     # prediction
     print('...Parse bam by chunk and predict', file=sys.stderr)
     batch_cols = ['qwidth'] + [f'{i}{j}' for i in ['s', 'e'] for j in range(2*nts)]
     features = ['qwidth'] + [f'{i}{j}_{k}' for i in ['s', 'e'] for j in range(2*nts) for k in 'ACGT']
 
     with pysam.AlignmentFile(path_bam) as bam:
-        if out_format == 'bam':
-            output = pysam.AlignmentFile(path_out, "wb", header=bam.header)
-        else:
-            output =  pysam.AlignmentFile(path_out, "w", header=bam.header)
-        for chunk in chunk_iter(bam, chunk_size):
-            # print('...reading new chunk: ' + time(), file=sys.stderr)
+        output = pysam.AlignmentFile(path_out, "wb", header=bam.header)
+        for chunk in chunk_iter(bam, size=chunk_size):
             aligns = list(chunk)
             # filter missing tx
             aligns = [i for i in aligns if i.reference_name in ref]
@@ -67,15 +60,16 @@ def pbam(path_ref, path_bam, path_model, path_out, out_format='bam',
             seqs_start = [None] * len(aligns)
             seqs_end = [None] * len(aligns)
             for i, align in enumerate(aligns):
+                seq = ref[align.reference_name]
                 qlen[i] = align.query_alignment_length
                 if align.reference_start - nts >= 0:
-                    seq_left = ref[align.reference_name][(align.reference_start - nts):(align.reference_start + nts)]
+                    seq_left = seq[(align.reference_start - nts):(align.reference_start + nts)]
                 else:
-                    seq_left = ref[align.reference_name][:(align.reference_start + nts)].rjust(2*nts, '-')
-                if align.reference_end + nts <= len(ref[align.reference_name]):
-                    seq_right = ref[align.reference_name][(align.reference_end - nts):(align.reference_end + nts)]
+                    seq_left = seq[:(align.reference_start + nts)].rjust(2*nts, '-')
+                if align.reference_end + nts <= len(seq):
+                    seq_right = seq[(align.reference_end - nts):(align.reference_end + nts)]
                 else:
-                    seq_right = ref[align.reference_name][(align.reference_end - nts):].ljust(2*nts, '-')
+                    seq_right = seq[(align.reference_end - nts):].ljust(2*nts, '-')
                 if align.is_reverse:
                     seqs_start[i] = rev_comp(seq_right)
                     seqs_end[i] = rev_comp(seq_left)
@@ -95,29 +89,12 @@ def pbam(path_ref, path_bam, path_model, path_out, out_format='bam',
                     X[:,k] = batch.loc[:, column]
             p_sites = model.predict(X)
             for p, align in zip(p_sites, aligns):
-                a = pysam.AlignedSegment()
-                a.query_name = align.query_name
-                a.flag = align.flag
-                a.reference_id = align.reference_id
-                a.mapping_quality = align.mapping_quality
-                a.tags = align.tags
-                if align.is_reverse:
-                    if align.query_alignment_length < rlen_min or align.query_alignment_length > rlen_max:
-                        continue
-                    # note: both reference_start and reference_positions are 0-based
-                    a.query_sequence  = align.query_alignment_sequence[-(p + 1)]
-                    a.reference_start = align.get_reference_positions()[-(p + 1)]
-                    a.cigar = ((0, 1),)
-                    a.query_qualities = [ align.query_alignment_qualities[-(p + 1)] ]
-                else:
-                    a.query_sequence  = align.query_alignment_sequence[p]
-                    a.reference_start = align.get_reference_positions()[p]
-                    a.cigar = ((0, 1),)
-                    a.query_qualities  = [ align.query_alignment_qualities[p] ]
-                output.write(a)
+                if align.query_alignment_length >= rlen_min and align.query_alignment_length <= rlen_max:
+                    align.set_tag('PS', p, 'i')
+                    output.write(align)
         output.close()
     return
 
 
 if __name__ == '__main__':
-    pbam()
+    predict()
