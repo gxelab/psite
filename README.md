@@ -2,7 +2,7 @@
 ---------------------------------------
 [![DOI](https://zenodo.org/badge/474568909.svg)](https://zenodo.org/badge/latestdoi/474568909)
 
-`PSite` is a pathon package that predicts P-site offsets for footprints generated in ribosome profiling using a random forest model trained with footprints around both annotated start and stop codons. `PSite` can report estimated P-site offsets in two manners:
+`PSite` is a python package that predicts P-site offsets for footprints generated in ribosome profiling using a random forest model trained with footprints around both annotated start and stop codons. `PSite` can report estimated P-site offsets in two manners:
 
 - append a `PS` tag to each original alignment in `SAM` or `BAM` format, without any other modifications;
 - output a new `BAM` file of the alignments of P-site locations only;
@@ -207,4 +207,7 @@ samtools sort -@ 8 -O bam -o sample_RPF.genome.psite.sorted.bam sample_RPF.genom
 psite coverage -q0 sample_RPF.genome.psite.sorted.bam sample_RPF.psite_cov
 ```
 
-#### Modules
+---------------------------------------
+#### Citation
+Please cite it with the zenodo doi for the moment: 10.5281/zenodo.7046270.
+
