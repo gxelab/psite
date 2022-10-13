@@ -64,3 +64,4 @@ samtools sort -@ 8 -O bam -o sample_RPF.genome.psite.sorted.bam sample_RPF.genom
 psite coverage -q0 sample_RPF.genome.psite.sorted.bam sample_RPF.psite_cov
 ```
 
+#### Modules
