@@ -1,5 +1,7 @@
 ## PSite
+
 ---------------------------------------
+
 [![DOI](https://zenodo.org/badge/474568909.svg)](https://zenodo.org/badge/latestdoi/474568909)
 
 `PSite` is a python package that predicts P-site offsets for footprints generated in ribosome profiling using a random forest model trained with footprints around both annotated start and stop codons. `PSite` can report estimated P-site offsets in two manners:
@@ -27,7 +29,7 @@ pip install psite-v0.0.3.tar.gz
 
 To uninstall it, simply run
 ```
-pip uninstall piste
+pip uninstall psite
 ```
 
 ---------------------------------------
