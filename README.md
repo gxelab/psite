@@ -189,22 +189,45 @@ salmon quant -p4 --seqBias --gcBias --posBias -l A -i salmon_index -r sample_RNA
 ```
 
 ##### Run PSite
-Model training:
+The first step is to train a random forest with `train` module with the transcriptome bam. The fitted model will be saved in [pickle](https://docs.python.org/3/library/pickle.html) format.
+
 ```bash
 psite train -n2 -i -t salmon -e salmon_results/quant.sf \
     cdna.all.fa.gz sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl txinfo.tsv
 ```
 
-Predict RPF P-site offsets (offset is stored in `PS` tag) 
-```bash
-# with transcriptome bam
-psite predict -n2 -i all_transcripts.fa  sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl sample_RPF.transcriptome.psite.bam
+Once the model is successfully trained, it can be used to predict P-site off sites for robosome footprints that are mapped to the reference genome or reference trancriptomes. It should be noted that if you use genome bam for prediction, genomic fasta sould be used as input, and vice versa.
 
-# with genome bam
-psite predict -n2 -i genome.fa  sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genome.psite.bam
+```bash
+# with transcriptomic bam
+psite predict -n2 -i all_transcripts.fa sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl sample_RPF.transcriptomic.psite.bam
+
+# with genomic bam
+psite predict -n2 -i genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.psite.bam
 ```
 
-Calculate genome-wide P-site coverage
+It also possible to output alignments with P-site locations only, which can be used for downstream applicaitons such as translated ORF prediction with [RibORF](https://github.com/zhejilab/RibORF).
+
+```bash
+psite pbam -n2 -f sam -p2 genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.p.sam
+```
+
+Here are a few lines from an example output:
+
+```
+r1      16      1       531180  255     1M      *       0       0       G       J       NH:i:1  HI:i:1  AS:i:30 nM:i:0  NM:i:0  MD:Z:31
+r2      16      1       531180  255     1M      *       0       0       G       J       NH:i:1  HI:i:1  AS:i:30 nM:i:0  NM:i:0  MD:Z:31
+r3      0       1       629921  255     1M      *       0       0       A       J       NH:i:1  HI:i:1  AS:i:31 nM:i:1  NM:i:1  MD:Z:0C33
+r4      0       1       629921  255     1M      *       0       0       A       J       NH:i:1  HI:i:1  AS:i:31 nM:i:1  NM:i:1  MD:Z:0C33
+r5      0       1       629922  255     1M      *       0       0       T       J       NH:i:1  HI:i:1  AS:i:32 nM:i:0  NM:i:0  MD:Z:33
+r6      0       1       629922  255     1M      *       0       0       T       J       NH:i:1  HI:i:1  AS:i:29 nM:i:1  NM:i:1  MD:Z:0C31
+r7      0       1       629922  255     1M      *       0       0       T       J       NH:i:1  HI:i:1  AS:i:29 nM:i:1  NM:i:1  MD:Z:0C31
+r8      0       1       629922  255     1M      *       0       0       T       J       NH:i:1  HI:i:1  AS:i:29 nM:i:1  NM:i:1  MD:Z:0C31
+r9      0       1       629922  255     1M      *       0       0       T       J       NH:i:1  HI:i:1  AS:i:32 nM:i:0  NM:i:0  MD:Z:33
+r10     0       1       629922  255     1M      *       0       0       T       J       NH:i:1  HI:i:1  AS:i:30 nM:i:1  NM:i:1  MD:Z:0C32
+```
+
+PSite also has a module for fast calculation of genome or transcriptome P-site coverage of robosome footprints. The alignments should be sort be coordinates before coverage calculation.
 ```bash
 # sort bam
 samtools sort -@ 8 -O bam -o sample_RPF.genome.psite.sorted.bam sample_RPF.genome.psite.bam
@@ -214,5 +237,6 @@ psite coverage -q0 sample_RPF.genome.psite.sorted.bam sample_RPF.psite_cov
 ```
 
 ---------------------------------------
+
 #### Cite
 Please cite PSite with the zenodo doi for the moment: [10.5281/zenodo.7046270](https://doi.org/10.5281/zenodo.7046270).
