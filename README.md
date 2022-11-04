@@ -77,11 +77,11 @@ Options:
   -i, --ignore_txversion          whether to ignore trasncript version in
                                   ".\d+" format
   -l, --rlen_min INTEGER          lower bound for RPF mapped length  [default:
-                                  25]
+                                  27]
   -u, --rlen_max INTEGER          upper bound for mapped read length
-                                  [default: 35]
+                                  [default: 32]
   -n, --nts INTEGER               fanking nucleotides to consider at each side
-                                  [default: 3]
+                                  [default: 1]
   -p, --threads INTEGER           number of threads used for model fitting
                                   [default: 1]
   -k, --keep                      whether to to keep intermediate results
@@ -106,10 +106,10 @@ Options:
   -c, --chunk_size INTEGER  chunk size for prediction batch  [default: 65536]
   -i, --ignore_txversion    whether to ignore trasncript version in ".\d+"
                             format
-  -l, --rlen_min INTEGER    lower bound for RPF mapped length  [default: 25]
-  -u, --rlen_max INTEGER    upper bound for mapped read length  [default: 35]
+  -l, --rlen_min INTEGER    lower bound for RPF mapped length  [default: 27]
+  -u, --rlen_max INTEGER    upper bound for mapped read length  [default: 32]
   -n, --nts INTEGER         fanking nucleotides to consider at each side
-                            [default: 3]
+                            [default: 1]
   -p, --threads INTEGER     Number of threads used for prediction  [default:
                             1]
   -h, --help                Show this message and exit.
@@ -135,11 +135,11 @@ Options:
                               65536]
   -i, --ignore_txversion      whether to ignore trasncript version in ".\d+"
                               format
-  -l, --rlen_min INTEGER      lower bound for RPF mapped length  [default: 25]
+  -l, --rlen_min INTEGER      lower bound for RPF mapped length  [default: 27]
   -u, --rlen_max INTEGER      upper bound for mapped read length  [default:
-                              35]
+                              32]
   -n, --nts INTEGER           fanking nucleotides to consider at each side
-                              [default: 3]
+                              [default: 1]
   -p, --threads INTEGER       Number of threads used for prediction  [default:
                               1]
   -h, --help                  Show this message and exit.
@@ -158,8 +158,8 @@ Usage: psite coverage [OPTIONS] PATH_BAM PREFIX
   prefix  : output prefix of P-site coverage tracks in bigWig format
 
 Options:
-  -l, --rlen_min INTEGER  lower bound for RPF mapped length  [default: 25]
-  -u, --rlen_max INTEGER  upper bound for mapped read length  [default: 35]
+  -l, --rlen_min INTEGER  lower bound for RPF mapped length  [default: 27]
+  -u, --rlen_max INTEGER  upper bound for mapped read length  [default: 32]
   -q, --mapq_min INTEGER  minimum mapping quality  [default: 10]
   -i, --ignore_supp       whether to ignore supplementary alignments
   -h, --help              Show this message and exit.
@@ -192,7 +192,7 @@ salmon quant -p4 --seqBias --gcBias --posBias -l A -i salmon_index -r sample_RNA
 The first step is to train a random forest with `train` module with the transcriptome bam. The fitted model will be saved in [pickle](https://docs.python.org/3/library/pickle.html) format.
 
 ```bash
-psite train -n2 -i -t salmon -e salmon_results/quant.sf \
+psite train -i -t salmon -e salmon_results/quant.sf \
     cdna.all.fa.gz sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl txinfo.tsv
 ```
 
@@ -200,16 +200,16 @@ Once the model is successfully trained, it can be used to predict P-site off sit
 
 ```bash
 # with transcriptomic bam
-psite predict -n2 -i all_transcripts.fa sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl sample_RPF.transcriptomic.psite.bam
+psite predict -i all_transcripts.fa sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl sample_RPF.transcriptomic.psite.bam
 
 # with genomic bam
-psite predict -n2 -i genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.psite.bam
+psite predict -i genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.psite.bam
 ```
 
 It also possible to output alignments with P-site locations only, which can be used for downstream applicaitons such as translated ORF prediction with [RibORF](https://github.com/zhejilab/RibORF).
 
 ```bash
-psite pbam -n2 -f sam -p2 genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.p.sam
+psite pbam -f sam -p2 genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.p.sam
 ```
 
 Here are a few lines from an example output:

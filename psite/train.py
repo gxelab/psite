@@ -66,11 +66,11 @@ def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
               help='lower bound for RPF mapped length')
 @click.option('-i', '--ignore_txversion', is_flag=True, default=False,
               help='whether to ignore trasncript version in ".\d+" format')
-@click.option('-l', '--rlen_min', type=click.INT, default=25,
+@click.option('-l', '--rlen_min', type=click.INT, default=27,
               help='lower bound for RPF mapped length')
-@click.option('-u', '--rlen_max', type=click.INT, default=35,
+@click.option('-u', '--rlen_max', type=click.INT, default=32,
               help='upper bound for mapped read length')
-@click.option('-n', '--nts', type=click.INT, default=3,
+@click.option('-n', '--nts', type=click.INT, default=1,
               help='fanking nucleotides to consider at each side')
 @click.option('-p', '--threads', type=click.INT, default=1,
               help='number of threads used for model fitting')
