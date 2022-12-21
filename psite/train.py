@@ -1,12 +1,49 @@
 import sys
 from pickle import dump
 from random import random
+from re import sub
 import click
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import pysam
-from sklearn.ensemble import RandomForestClassifier
-from psite.utils import CLICK_CS, read_fasta, read_txinfo, strip_version, rev_comp
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
+from sklearn.utils.multiclass import unique_labels
+from utils import CLICK_CS, read_fasta, read_txinfo, strip_version
+# from psite.utils import CLICK_CS, read_fasta, read_txinfo, strip_version
+
+
+class DistArgMax(BaseEstimator, ClassifierMixin):
+    """
+    a learner that assigns offset based on the most frequent distance
+    to start codon in the training data.
+    """
+    def __init__(self):
+        self.offsets = dict()
+
+    def fit(self, X, y):
+        X, y = check_X_y(X, y)
+        self.classes_ = unique_labels(y)
+        X_qwidth = X[:, 0]  # the first column should be qwidth
+        for qw in unique_labels(X_qwidth):
+            val, cnt = np.unique(y[X_qwidth == qw], return_counts=True)
+            self.offsets[qw] = val[cnt.argmax()]
+        return self
+
+    def predict(self, X):
+        check_is_fitted(self)
+        X = check_array(X)
+        return np.array([self.offsets[i] for i in X[:, 0]])
+
+
+def frame_test(test, psite):
+    """
+    calculate proportions of psites in each frame
+    """
+    frame = (test.tstart + psite - test.start_codon) % 3
+    return frame.value_counts() / frame.size
 
 
 def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
@@ -52,18 +89,15 @@ def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
     return txrep
 
 
-def extract_features(path_ref, path_bam, ignore_txversion=False, nts=3, frac=1):
+def extract_features(path_bam, ref, nts=3, frac=1):
     """
     Extract and save features for model training and testing
 
-    \b
-    path_ref: reference transcriptome (fasta) matching the bam
     path_bam: alignments of RPFs to reference transcriptome
-
-    ignore_txversion: whether to ignore transcript version numbers
+    ref: reference transcriptome (fasta) matching the bam
     nts: number of nucleotides to include from each side of the 5' end
+    frac: frac of alignments to read from bam
     """
-    ref = read_fasta(path_ref, ignore_version=ignore_txversion)
     alignments = []
     with pysam.AlignmentFile(path_bam) as bam:
         for align in bam:
@@ -83,8 +117,8 @@ def extract_features(path_ref, path_bam, ignore_txversion=False, nts=3, frac=1):
             else:
                 flank_5p = seq[:(align.reference_start + nts)].rjust(2*nts, '-')
             
-            out = [align.query_name, align.reference_name, str(align.reference_start + 1),
-                   str(align.query_alignment_length)] + list(flank_5p)
+            out = [align.query_name, align.reference_name, align.reference_start + 1,
+                   align.query_alignment_length] + list(flank_5p)
             alignments.append(out)
     cols = ['rname', 'tx_name', 'tstart', 'qwidth'] + [f's{i}' for i in range(2*nts)]
     return pd.DataFrame(alignments, columns=cols)
@@ -93,52 +127,68 @@ def extract_features(path_ref, path_bam, ignore_txversion=False, nts=3, frac=1):
 @click.command(context_settings=CLICK_CS)
 @click.argument('path_ref', type=click.STRING)
 @click.argument('path_bam', type=click.STRING)
-@click.argument('path_model', type=click.STRING)
+@click.argument('output_prefix', type=click.STRING)
 @click.argument('path_txinfo', type=click.STRING)
-@click.option('-s', 'sep_txinfo', type=click.STRING, default='auto',
-              help='field delimiter of the txinfo file')
-@click.option('-t', '--type_ref', default='longest',
+@click.option('-t', '--type_rep', default='longest',
               type=click.Choice(['longest', 'principal', 'kallisto', 'salmon']),
               help='type of representative transcripts')
 @click.option('-e', '--path_exp', type=click.STRING, default=None,
-              help='lower bound for RPF mapped length')
+              help='path of transcript expression quant results')
 @click.option('-i', '--ignore_txversion', is_flag=True, default=False,
               help='whether to ignore trasncript version in ".\d+" format')
-@click.option('-l', '--rlen_min', type=click.INT, default=27,
-              help='lower bound for RPF mapped length')
-@click.option('-u', '--rlen_max', type=click.INT, default=32,
-              help='upper bound for mapped read length')
-@click.option('-n', '--nts', type=click.INT, default=1,
+@click.option('-n', '--nts', type=click.INT, default=3,
               help='fanking nucleotides to consider at each side')
-@click.option('-p', '--threads', type=click.INT, default=1,
+@click.option('--offset_min', type=click.INT, default=11,
+              help='lower bound of distance between RPF 5p and start codon')
+@click.option('--offset_max', type=click.INT, default=14,
+              help='upper bound of distance between RPF 5p and start codon')
+@click.option('-d', '--max_depth', type=click.INT, default=1,
               help='number of threads used for model fitting')
+@click.option('-m', '--min_samples_split', type=click.INT, default=6,
+              help='min number of alignments required to split an internal node')
 @click.option('-k', '--keep', is_flag=True, default=False,
               help='whether to to keep intermediate results')
-def train(path_ref, path_bam, path_model, path_txinfo,
-          sep_txinfo='auto', type_ref='longest', path_exp=None, ignore_txversion=True,
-          rlen_min=25, rlen_max=35, nts=3, threads=1, keep=False):
+def train(path_ref, path_bam, output_prefix, path_txinfo,
+          type_rep='longest', path_exp=None, ignore_txversion=True,
+          nts=3, keep=False, frac=1,  offset_min=11, offset_max=14,
+          max_depth=3, min_samples_split=6):
     """
-    train a random forest model of p-site offsets
+    train a model for P-site offset prediction
 
     \b
-    path_ref   : reference transcriptome (fasta) matching the bam
-    path_bam   : alignments of RPFs to reference transcriptome
-    path_model : path to save the fitted model
-    path_txinfo: transcriptome annotation
+    path_ref     : reference transcriptome (fasta) matching the bam
+    path_bam     : alignments of RPFs to reference transcriptome
+    output_prefix: output prefix of fitted models and logs
+    path_txinfo  : transcriptome annotation
     """
-    # reference transcriptome
-    print('...Load reference fasta', file=sys.stderr)
-    ref = read_fasta(path=path_ref, ignore_version=ignore_txversion)
-    # gene info
-    print('...Load gene information', file=sys.stderr)
-    tx_info = read_txinfo(path_txinfo, sep_txinfo)
-    
-    # get representative transcripts
-    print('...Get representative transcript per gene', file=sys.stderr)
-    txrep = get_txrep(tx_info, type_ref, path_exp, ignore_txversion)
 
-    print('...keep items common in ref fasta and txinfo', file=sys.stderr)
-    # check whether tx length in `ref` is consistent with that in `txrep`
+    log = open(f'{output_prefix}.log', 'wt')
+    print((
+        f'# TxInfo: {path_txinfo}\n'
+        f'# Transcript quant: {path_exp}\n'
+        f'# Alignment file: {path_bam}\n'
+        f'# nts                     = 3\n'
+        f'# train_offset_min        = {offset_min}\n'
+        f'# train_offset_max        = {offset_max}\n'
+        f'# train_max_depth         = {max_depth}\n'
+        f'# train_min_samples_split = {min_samples_split}'), file=log)
+
+    # load data ===============================================================
+    print('# ...load reference fasta', file=log)
+    ref = read_fasta(path=path_ref, ignore_version=ignore_txversion)
+
+    print('# ...load gene information', file=log)
+    tx_info = read_txinfo(path_txinfo, '\t')
+    
+    # exclude MT and fly transposable elements
+    tx_info = tx_info[~tx_info.chrom.isin(['MT', 'mitochondrion_genome'])]
+    if (tx_info.gene_id.str.startswith('FBgn')).sum() > 0:
+        tx_info = tx_info[tx_info.gene_id.str.startswith('FBgn')]
+    
+    print('# ...get representative transcript per gene', file=log)
+    txrep = get_txrep(tx_info, type_rep, path_exp, ignore_txversion)
+
+    print('# ...keep items common in ref fasta and txinfo', file=log)
     txrep = txrep[txrep['tx_name'].isin(ref.keys())]
     ref_len = np.array([len(ref[i]) for i in txrep['tx_name']])
     txrep = txrep[txrep['tx_len'] == ref_len]
@@ -147,77 +197,96 @@ def train(path_ref, path_bam, path_model, path_txinfo,
     # get the position of start codon and stop codon of each transcript
     txrep['start_codon'] = txrep['utr5_len'] + 1
     txrep['stop_codon'] = txrep['utr5_len'] + txrep['cds_len'] - 2
-    txrep = txrep.set_index('tx_name', drop=False)  # index for faster value access
     
-    # check
-    print('...check metada', file=sys.stderr)
-    print(txrep.head(), file=sys.stderr)
-    print(list(ref.keys())[:6], file = sys.stderr)
+    print('# ...check metada', file=log)
+    print(sub(r'(^|\n)', r'\1# ', str(txrep.head())), file=log)
+    print('# ', list(ref.keys())[:6], file = log)
     
-    # parse alignments
-    print('...parse alignments', file=sys.stderr)
-    reads = set()
-    col_qwidth = list()
-    col_sqleft = list()
-    col_sqright = list()
-    col_label = list()
+    print('# ...parse alignments', file=log)
+    alignments = extract_features(path_bam, ref, nts=nts, frac=frac)
+    alignments = alignments[alignments.tx_name.isin(txrep.tx_name)]
+    alignments.drop_duplicates(subset='rname', inplace=True)
+    alignments.drop(columns='rname', inplace=True)
 
-    with pysam.AlignmentFile(path_bam) as bam:
-        for align in bam:
-            if align.query_name in reads:
-                continue
-            # alignment qc
-            if align.is_reverse:
-                continue
-            if align.query_alignment_length < rlen_min or align.query_alignment_length > rlen_max:
-                continue
-            if align.reference_name not in txrep['tx_name']:
-                continue
-            tx_info = txrep.loc[align.reference_name]
-            seq = ref[align.reference_name]
-            if align.reference_start < nts or align.reference_end > tx_info['tx_len'] - nts:
-                continue
-            reads.add(align.query_name)
-            # keep alignments overlapping with start codon or stop codon (1-based)
-            # reference_start: 0-based; reference_end: 1-based rightmost coordinate
-            dist_start = tx_info['start_codon'] - align.reference_start - 1
-            dist_stop = tx_info['stop_codon'] - align.reference_start - 4
-            if dist_start >= 11 and dist_start <= 14:
-                label = dist_start
-            elif dist_stop >= 10 and dist_stop <= 13:
-                label = dist_stop
-            else: # not overlapping with start/stop in given offset range
-                continue
-            col_qwidth.append(align.query_alignment_length)
-            col_sqleft.append(seq[(align.reference_start - nts):(align.reference_start + nts)])
-            col_sqright.append(seq[(align.reference_end - nts):(align.reference_end + nts)])
-            col_label.append(label)
+    # change nucleotide columns to categorical, so that there are always four columns when run
+    # pd.get_dummies for each column, even of one or more of A/C/G/T didn't appear in this column.
+    nuc_cols = [f's{i}' for i in range(2*nts)]
+    for i in nuc_cols:
+        alignments.loc[:, i] = pd.Categorical(alignments[i], categories=['A', 'C', 'G', 'T'])
 
-    # prepare training data
-    print('...prepare training data', file=sys.stderr)
-    sqleft = pd.DataFrame([list(i) for i in col_sqleft]).add_prefix('s')
-    sqright = pd.DataFrame([list(i) for i in col_sqright]).add_prefix('e')
-    training_data = pd.DataFrame({'label': col_label, 'qwidth': col_qwidth})
-    training_data = pd.concat([training_data, sqleft, sqright], axis = 1)
-    # prevent ambiguous base 'N' being used in training data
-    features = pd.get_dummies(training_data)
-    scols = ['label', 'qwidth'] 
-    scols += [f'{i}{j}_{k}' for i in ['s', 'e'] for j in range(2*nts) for k in 'ACGT']
-    cols_to_remove = [ col for col in features.columns if col not in scols]
-    features.drop(columns=cols_to_remove, inplace=True)
+    data = pd.merge(alignments, txrep[['tx_name', 'start_codon', 'stop_codon']], on='tx_name')
+    data = data.assign(
+        dist_start=lambda x: x.start_codon - x.tstart,
+        dist_stop=lambda x: x.stop_codon - x.tstart - 3)
+    del alignments
 
-    if keep == True:
-        features.to_csv(f'{path_model}.train.tsv', sep='\t', index=False)
+    if keep:
+        data.to_csv(f'', sep='\t')
 
-    X = features.drop(columns='label').to_numpy()
-    y = features[['label']].to_numpy().flatten()
+    # QC plot =================================================================
+    print('# ...draw QC plots of read length and offset distribution', file=log)
+    qwidth_freq = data.qwidth.value_counts().sort_index()
+    qwidth_freq = qwidth_freq[(qwidth_freq.index >= 25) & (qwidth_freq.index <= 40)]
+    qwidth_freq = qwidth_freq / qwidth_freq.sum()
+    ax = qwidth_freq.plot(kind='bar')
+    ax.figure.savefig(f'{output_prefix}.qwidth_distribution.pdf')
+
+    # filter qwidth
+    qwidth_range = qwidth_freq.index[qwidth_freq > 0.05]
+    print(f'# Read lengths used: {list(qwidth_range)}', file=log)
+    data = data[data.qwidth.isin(qwidth_range)]
+
+    # plot 5' end distribution around start and stop codonW
+    tmp = data[data.dist_start.between(8, 20)].copy()
+    g = sns.FacetGrid(tmp, col="qwidth", col_wrap=5, sharex=False, sharey=False, height=3)
+    g.map(sns.histplot, 'dist_start', binwidth=0.25)
+    g.set(xticks=[8, 10, 12, 14, 16, 18, 20])
+    g.savefig(f'{output_prefix}.offset_distribution.pdf')
+    del ax, g, tmp
+
+    # use alignments overlapping start or stop codons for training
+    print('# ...filter aligments for training', file=log)
+    train_start = data[data.dist_start.between(offset_min, offset_max)].copy()
+    train_start['dist'] = train_start.dist_start
+    train_stop = data[data.dist_stop.between(offset_min, offset_max)].copy()
+    train_stop['dist'] = train_stop.dist_stop
+    train = pd.concat([train_start, train_stop], axis=0)
+    del train_start, train_stop
+
+    # train different learners ================================================
+    print('# ...train DAM and GBT', file=log)
+    train_features = ['qwidth'] + nuc_cols
+    X = pd.get_dummies(train[train_features], drop_first=True)
+    y = train.dist.to_numpy()
+
+    dam = DistArgMax()
+    dam.fit(X, y)
     
-    # fit model
-    print('...fit model', file=sys.stderr)
-    rfc = RandomForestClassifier(n_estimators=200, max_features='sqrt', n_jobs=threads)
-    rfc.fit(X, y)
-    pickle.dump(rfc, open(path_model, 'wb'))
-    print('...Done!', file=sys.stderr)
+    gbt = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1,
+        min_samples_split=min_samples_split, max_depth=max_depth)
+    gbt.fit(X, y)
+    dump(gbt, open(f'{output_prefix}.pickle', 'wb'))
+
+    # reads within CDS are used for training
+    cds_aligns = data[(data.dist_start < 9) & (data.dist_stop > 15)]
+    cds_X = pd.get_dummies(cds_aligns[train_features], drop_first=True)
+
+    dam_cds_yhat = dam.predict(cds_X)
+    gbt_cds_yhat = gbt.predict(cds_X)
+
+    print(pd.DataFrame({
+        'none': frame_test(cds_aligns, 0),
+        'base': frame_test(cds_aligns, dam_cds_yhat),
+        'GBT': frame_test(cds_aligns, gbt_cds_yhat),
+    }), file=log)
+
+    print(pd.DataFrame({
+        'feat': X.columns,
+        'GBT': gbt.feature_importances_
+    }), file=log)
+
+    print('# Done!', file=log)
+    log.close()
     return
 
 
