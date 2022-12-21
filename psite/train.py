@@ -1,12 +1,12 @@
 import sys
-import pickle
-
+from pickle import dump
+from random import random
 import click
 import numpy as np
 import pandas as pd
 import pysam
 from sklearn.ensemble import RandomForestClassifier
-from psite.utils import read_fasta, read_txinfo, strip_version, CLICK_CS
+from psite.utils import CLICK_CS, read_fasta, read_txinfo, strip_version, rev_comp
 
 
 def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
@@ -50,6 +50,44 @@ def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
         print('Incorrect txinfo_rep option!', file=sys.stderr)
         exit()
     return txrep
+
+
+def extract_features(path_ref, path_bam, ignore_txversion=False, nts=3, frac=1):
+    """
+    Extract and save features for model training and testing
+
+    \b
+    path_ref: reference transcriptome (fasta) matching the bam
+    path_bam: alignments of RPFs to reference transcriptome
+
+    ignore_txversion: whether to ignore transcript version numbers
+    nts: number of nucleotides to include from each side of the 5' end
+    """
+    ref = read_fasta(path_ref, ignore_version=ignore_txversion)
+    alignments = []
+    with pysam.AlignmentFile(path_bam) as bam:
+        for align in bam:
+            if frac < 1 and random() > frac:
+                continue
+            if align.reference_name not in ref:
+                continue
+            if align.is_reverse:
+                # alignments in transcriptome bam should be in forward strand
+                continue
+            # .reference_start: 0-based leftmost coordinate
+            # .reference_end: reference_end points to one past the last aligned residue.
+            # so that reference_end - reference_start = reference_length
+            seq = ref[align.reference_name]
+            if align.reference_start - nts >= 0:
+                flank_5p = seq[(align.reference_start - nts):(align.reference_start + nts)]
+            else:
+                flank_5p = seq[:(align.reference_start + nts)].rjust(2*nts, '-')
+            
+            out = [align.query_name, align.reference_name, str(align.reference_start + 1),
+                   str(align.query_alignment_length)] + list(flank_5p)
+            alignments.append(out)
+    cols = ['rname', 'tx_name', 'tstart', 'qwidth'] + [f's{i}' for i in range(2*nts)]
+    return pd.DataFrame(alignments, columns=cols)
 
 
 @click.command(context_settings=CLICK_CS)
