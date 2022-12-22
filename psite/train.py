@@ -142,7 +142,7 @@ def extract_features(path_bam, ref, nts=3, frac=1):
               help='lower bound of distance between RPF 5p and start codon')
 @click.option('--offset_max', type=click.INT, default=14,
               help='upper bound of distance between RPF 5p and start codon')
-@click.option('-d', '--max_depth', type=click.INT, default=1,
+@click.option('-d', '--max_depth', type=click.INT, default=3,
               help='number of threads used for model fitting')
 @click.option('-m', '--min_samples_split', type=click.INT, default=6,
               help='min number of alignments required to split an internal node')
@@ -261,11 +261,15 @@ def train(path_ref, path_bam, output_prefix, path_txinfo,
 
     dam = DistArgMax()
     dam.fit(X, y)
-    
+    dam.qwidth_range = qwidth_range.to_numpy()
+    dump(dam, open(f'{output_prefix}.dam.pickle', 'wb'))
+
     gbt = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1,
         min_samples_split=min_samples_split, max_depth=max_depth)
     gbt.fit(X, y)
-    dump(gbt, open(f'{output_prefix}.pickle', 'wb'))
+    gbt.qwidth_range = qwidth_range.to_numpy()
+    gbt.nts = nts
+    dump(gbt, open(f'{output_prefix}.gbt.pickle', 'wb'))
 
     # reads within CDS are used for training
     cds_aligns = data[(data.dist_start < 9) & (data.dist_stop > 15)]
