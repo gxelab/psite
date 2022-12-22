@@ -11,8 +11,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
-from utils import CLICK_CS, read_fasta, read_txinfo, strip_version
-# from psite.utils import CLICK_CS, read_fasta, read_txinfo, strip_version
+from psite.utils import CLICK_CS, read_fasta, read_txinfo, strip_version
+# from utils import CLICK_CS, read_fasta, read_txinfo, strip_version
 
 
 class DistArgMax(BaseEstimator, ClassifierMixin):
