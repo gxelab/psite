@@ -1,4 +1,3 @@
-from operator import index
 from datetime import datetime
 import re
 import gzip
