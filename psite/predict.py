@@ -28,7 +28,6 @@ def predict(path_ref, path_bam, path_model, path_out,
     """
     load pre-trained model and predict P-site offsets
     
-
     \b
     path_ref   : reference transcriptome (fasta) matching the bam
     path_bam   : alignments of RPFs to reference transcriptome

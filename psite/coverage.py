@@ -26,9 +26,9 @@ def bw_write_chrom(bw, chrom, cov):
 @click.command(context_settings=CLICK_CS)
 @click.argument('path_bam', type=click.STRING)
 @click.argument('prefix', type=click.STRING)
-@click.option('-l', '--rlen_min', type=click.INT, default=27,
+@click.option('-l', '--rlen_min', type=click.INT, default=25,
               help='lower bound for RPF mapped length')
-@click.option('-u', '--rlen_max', type=click.INT, default=32,
+@click.option('-u', '--rlen_max', type=click.INT, default=40,
               help='upper bound for mapped read length')
 @click.option('-q', '--mapq_min', type=click.INT, default=10,
               help='minimum mapping quality')

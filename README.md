@@ -18,6 +18,7 @@ To demonstrate the usage of the `PS` tag, `PSite` also has a `coverage` module t
 - `pysam` >= 0.17.0
 - `pyBigWig` >= 0.3.18
 - `click` >= 8.1.2
+- `seaborn` >= 0.11.0
 
 
 ### Install and uninstall
@@ -29,6 +30,12 @@ pip install psite-v0.0.3.tar.gz
 To uninstall it, simply run
 ```
 pip uninstall psite
+```
+
+### Build distributions from source
+Run the following command in source directory
+```bash
+python3 -m build
 ```
 
 ---------------------------------------
