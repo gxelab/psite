@@ -89,7 +89,7 @@ def get_txrep(txinfo, type_rep='longest', path_exp=None, ignore_version=False):
     return txrep
 
 
-def extract_features(path_bam, ref, nts=3, frac=1):
+def extract_features(path_bam, ref, nts=3, frac=1.0):
     """
     Extract and save features for model training and testing
 
@@ -138,6 +138,8 @@ def extract_features(path_bam, ref, nts=3, frac=1):
               help='whether to ignore trasncript version in ".\d+" format')
 @click.option('-n', '--nts', type=click.INT, default=3,
               help='fanking nucleotides to consider at each side')
+@click.option('-f', '--frac', type=click.FLOAT, default=1.0,
+              help='fraction of alignments for training (for large datasets)')
 @click.option('--offset_min', type=click.INT, default=11,
               help='lower bound of distance between RPF 5p and start codon')
 @click.option('--offset_max', type=click.INT, default=14,
