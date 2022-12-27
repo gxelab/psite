@@ -140,7 +140,7 @@ def extract_features(path_bam, ref, nts=3, frac=1.0):
               help='fanking nucleotides to consider at each side')
 @click.option('-f', '--frac', type=click.FLOAT, default=1.0,
               help='fraction of alignments for training (for large datasets)')
-@click.option('--offset_min', type=click.INT, default=11,
+@click.option('--offset_min', type=click.INT, default=10,
               help='lower bound of distance between RPF 5p and start codon')
 @click.option('--offset_max', type=click.INT, default=14,
               help='upper bound of distance between RPF 5p and start codon')
