@@ -64,34 +64,39 @@ This is the core module that trains the random forest model for P-site offset pr
 
 ```bash
 $ psite train -h
-Usage: psite train [OPTIONS] PATH_REF PATH_BAM PATH_MODEL PATH_TXINFO
+Usage: psite train [OPTIONS] PATH_REF PATH_BAM OUTPUT_PREFIX PATH_TXINFO
 
-  train a random forest model of p-site offsets
+  train a model for P-site offset prediction
 
-  path_ref   : reference transcriptome (fasta) matching the bam
-  path_bam   : alignments of RPFs to reference transcriptome
-  path_model : path to save the fitted model
-  path_txinfo: transcriptome annotation
+  path_ref     : reference transcriptome (fasta) matching the bam
+  path_bam     : alignments of RPFs to reference transcriptome
+  output_prefix: output prefix of fitted models and logs
+  path_txinfo  : transcriptome annotation
 
 Options:
-  -s TEXT                         field delimiter of the txinfo file
-                                  [default: auto]
-  -t, --type_ref [longest|principal|kallisto|salmon]
+  -t, --type_rep [longest|principal|kallisto|salmon]
                                   type of representative transcripts
                                   [default: longest]
-  -e, --path_exp TEXT             lower bound for RPF mapped length
+  -e, --path_exp TEXT             path of transcript expression quant results
   -i, --ignore_txversion          whether to ignore trasncript version in
-                                  ".\d+" format
-  -l, --rlen_min INTEGER          lower bound for RPF mapped length  [default:
-                                  27]
-  -u, --rlen_max INTEGER          upper bound for mapped read length
-                                  [default: 32]
+                                  ".\d+" format  [default: False]
   -n, --nts INTEGER               fanking nucleotides to consider at each side
-                                  [default: 1]
-  -p, --threads INTEGER           number of threads used for model fitting
-                                  [default: 1]
+                                  [default: 3]
+  -f, --frac FLOAT                fraction of alignments for training (for
+                                  large datasets)  [default: 1.0]
+  --offset_min INTEGER            lower bound of distance between RPF 5p and
+                                  start codon  [default: 10]
+  --offset_max INTEGER            upper bound of distance between RPF 5p and
+                                  start codon  [default: 14]
+  -d, --max_depth INTEGER         number of threads used for model fitting
+                                  [default: 3]
+  -m, --min_samples_split INTEGER
+                                  min number of alignments required to split
+                                  an internal node  [default: 6]
   -k, --keep                      whether to to keep intermediate results
-  -h, --help                      Show this message and exit.
+                                  [default: False]
+  -h, --help                      Show this message and exit.  [default:
+                                  False]
 ```
 
 #### `predict`
@@ -109,16 +114,12 @@ Usage: psite predict [OPTIONS] PATH_REF PATH_BAM PATH_MODEL PATH_OUT
   path_out   : output path of bam with PS (for P-site) tag
 
 Options:
-  -c, --chunk_size INTEGER  chunk size for prediction batch  [default: 65536]
   -i, --ignore_txversion    whether to ignore trasncript version in ".\d+"
-                            format
-  -l, --rlen_min INTEGER    lower bound for RPF mapped length  [default: 27]
-  -u, --rlen_max INTEGER    upper bound for mapped read length  [default: 32]
-  -n, --nts INTEGER         fanking nucleotides to consider at each side
-                            [default: 1]
-  -p, --threads INTEGER     Number of threads used for prediction  [default:
-                            1]
-  -h, --help                Show this message and exit.
+                            format  [default: False]
+  -l, --rlen_min INTEGER    lower bound for mapped mapped length
+  -u, --rlen_max INTEGER    upper bound for mapped read length
+  -c, --chunk_size INTEGER  chunk size for prediction batch  [default: 100000]
+  -h, --help                Show this message and exit.  [default: False]
 ```
 
 #### `pbam`
@@ -137,18 +138,13 @@ Usage: psite pbam [OPTIONS] PATH_REF PATH_BAM PATH_MODEL PATH_OUT
 
 Options:
   -f, --out_format [bam|sam]  P-site alignemnt output format  [default: bam]
-  -c, --chunk_size INTEGER    chunk size for prediction batch  [default:
-                              65536]
   -i, --ignore_txversion      whether to ignore trasncript version in ".\d+"
-                              format
-  -l, --rlen_min INTEGER      lower bound for RPF mapped length  [default: 27]
-  -u, --rlen_max INTEGER      upper bound for mapped read length  [default:
-                              32]
-  -n, --nts INTEGER           fanking nucleotides to consider at each side
-                              [default: 1]
-  -p, --threads INTEGER       Number of threads used for prediction  [default:
-                              1]
-  -h, --help                  Show this message and exit.
+                              format  [default: False]
+  -l, --rlen_min INTEGER      lower bound for mapped mapped length
+  -u, --rlen_max INTEGER      upper bound for mapped read length
+  -c, --chunk_size INTEGER    chunk size for prediction batch  [default:
+                              100000]
+  -h, --help                  Show this message and exit.  [default: False]
 ```
 
 #### `coverage`
@@ -164,11 +160,12 @@ Usage: psite coverage [OPTIONS] PATH_BAM PREFIX
   prefix  : output prefix of P-site coverage tracks in bigWig format
 
 Options:
-  -l, --rlen_min INTEGER  lower bound for RPF mapped length  [default: 27]
-  -u, --rlen_max INTEGER  upper bound for mapped read length  [default: 32]
+  -l, --rlen_min INTEGER  lower bound for RPF mapped length  [default: 25]
+  -u, --rlen_max INTEGER  upper bound for mapped read length  [default: 40]
   -q, --mapq_min INTEGER  minimum mapping quality  [default: 10]
   -i, --ignore_supp       whether to ignore supplementary alignments
-  -h, --help              Show this message and exit.
+                          [default: False]
+  -h, --help              Show this message and exit.  [default: False]
 ```
 
 ---------------------------------------
@@ -199,23 +196,39 @@ The first step is to train a random forest with `train` module with the transcri
 
 ```bash
 psite train -i -t salmon -e salmon_results/quant.sf \
-    cdna.all.fa.gz sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl txinfo.tsv
+    cdna.all.fa.gz sample_RPF.Aligned.toTranscriptome.out.bam output_prefix txinfo.tsv
 ```
 
 Once the model is successfully trained, it can be used to predict P-site off sites for robosome footprints that are mapped to the reference genome or reference trancriptomes. It should be noted that if you use genome bam for prediction, genomic fasta sould be used as input, and vice versa.
 
+Model training is slow for large dataset. `-f` parameter can be used to select only a subset of alignments for training. In our experience, this can significantly improve speed and reduce memory usage, while maintaining similar accuracy.
+
 ```bash
 # with transcriptomic bam
-psite predict -i all_transcripts.fa sample_RPF.Aligned.toTranscriptome.out.bam fitted_model.pkl sample_RPF.transcriptomic.psite.bam
+psite predict -i all_transcripts.fa sample_RPF.Aligned.toTranscriptome.out.bam output_prefix.gbt.pickle sample_RPF.transcriptome.tag.bam
 
 # with genomic bam
-psite predict -i genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.psite.bam
+psite predict -i genome.fa sample_RPF.Aligned.sortedByCoord.out.bam output_prefix.gbt.pickle sample_RPF.genome.tag.bam
+```
+example output:
+
+```
+r1	16	2L	10716	255	29M	*	0	0	TACAATTTATTAAATGGGGACGGACCAAT	IIIIIIIIIIIIIIIIIIIIIHIIDDDDD	NH:i:1	HI:i:1	AS:i:28	nM:i:0	NM:i:0	MD:Z:29	jM:B:c,-1	jI:B:i,-1	PS:i:10
+r2	16	2L	10836	255	33M	*	0	0	TGTCAACTTTTATCCTTTGTACCTTTCTACAAA	IIIIIIIIIIIIIIIIIIIIIIIIIIIIDDDDD	NH:i:1	HI:i:1	AS:i:32	nM:i:0	NM:i:0	MD:Z:33	jM:B:c,-1	jI:B:i,-1	PS:i:12
+r3	16	2L	10891	255	30M	*	0	0	CGGGTAAAGGGTATAAAGTCACTACGCGAA	GGD1HEC?HHIHHGF<1?IHHDHHF0@DD0	NH:i:1	HI:i:1	AS:i:29	nM:i:0	NM:i:0	MD:Z:30	jM:B:c,-1	jI:B:i,-1	PS:i:12
+r4	16	2L	11027	255	31M	*	0	0	TTTCTGTTTGTATGTAAATCGCGTTTAATTT	IIIIIIIIIIIIIIIIIIIIIIIIIIDDDDD	NH:i:1	HI:i:1	AS:i:30	nM:i:0	NM:i:0	MD:Z:31	jM:B:c,-1	jI:B:i,-1	PS:i:12
+r5	16	2L	11073	255	32M	*	0	0	CGTTCCTATTTTGCTGTCCCCGTTCGATTTTT	IHHIIIIIIIIIIIIIIHIIIIHIIIIDDDDD	NH:i:1	HI:i:1	AS:i:31	nM:i:0	NM:i:0	MD:Z:32	jM:B:c,-1	jI:B:i,-1	PS:i:12
+r6	16	2L	11077	255	29M	*	0	0	CCTATTTTGCTGTCCCCGTTCGATTTTTA	@CC?FCD<<CG</H@HDHHHIHCF0?@@D	NH:i:1	HI:i:1	AS:i:28	nM:i:0	NM:i:0	MD:Z:29	jM:B:c,-1	jI:B:i,-1	PS:i:12
+r7	16	2L	11132	255	31M	*	0	0	AAATTACATCAGGACTAGTACTCGTTTGCGT	IIIHIIHIIIIIHIHIIIHHIGIIIIDDDBD	NH:i:1	HI:i:1	AS:i:30	nM:i:0	NM:i:0	MD:Z:31	jM:B:c,-1	jI:B:i,-1	PS:i:11
+r8	16	2L	11138	255	32M	*	0	0	CATCAGGACTAGTACTCGTTTGCGTCGTATTT	1HHHIIHIHGIHIIIIIIHHIIHGGHHDDD@@	NH:i:1	HI:i:1	AS:i:31	nM:i:0	NM:i:0	MD:Z:32	jM:B:c,-1	jI:B:i,-1	PS:i:12
+r9	16	2L	11138	255	29M	*	0	0	CATCAGGACTAGTACTCGTTTGCGTCGTA	CFEGFHFCIHIHIIIHDIGIIHCHD<BB?	NH:i:1	HI:i:1	AS:i:28	nM:i:0	NM:i:0	MD:Z:29	jM:B:c,-1	jI:B:i,-1	PS:i:10
+r10	16	2L	11140	255	32M	*	0	0	TCAGGACTAGTACTCGTTTGCGTCGTATTTCT	FCCHHCHIHIHHE0HHHDECHIH?IHG@0@D@	NH:i:1	HI:i:1	AS:i:31	nM:i:0	NM:i:0	MD:Z:32	jM:B:c,-1	jI:B:i,-1	PS:i:13
 ```
 
 It also possible to output alignments with P-site locations only, which can be used for downstream applicaitons such as translated ORF prediction with [RibORF](https://github.com/zhejilab/RibORF).
 
 ```bash
-psite pbam -f sam -p2 genome.fa sample_RPF.Aligned.sortedByCoord.out.bam fitted_model.pkl sample_RPF.genomic.p.sam
+psite pbam -f sam -p2 genome.fa sample_RPF.Aligned.sortedByCoord.out.bam output_prefix.gbt.pickle sample_RPF.genome.psite.sam
 ```
 
 Here are a few lines from an example output:
@@ -236,10 +249,10 @@ r10     0       1       629922  255     1M      *       0       0       T       
 PSite also has a module for fast calculation of genome or transcriptome P-site coverage of robosome footprints. The alignments should be sort be coordinates before coverage calculation.
 ```bash
 # sort bam
-samtools sort -@ 8 -O bam -o sample_RPF.genome.psite.sorted.bam sample_RPF.genome.psite.bam
+samtools sort -@ 8 -O bam -o sample_RPF.genome.tag.sorted.bam sample_RPF.genome.tag.bam
 
 # calculate coverage
-psite coverage -q0 sample_RPF.genome.psite.sorted.bam sample_RPF.psite_cov
+psite coverage -q0 sample_RPF.genome.tag.sorted.bam sample_RPF.psite_cov
 ```
 
 ---------------------------------------
