@@ -258,7 +258,4 @@ psite coverage -q0 sample_RPF.genome.tag.sorted.bam sample_RPF.psite_cov
 ---------------------------------------
 
 #### Other information
-Please use the [issues](https://github.com/gxelab/psite/issues) panel for questions related to PSite, bug reports or feauture fequests.
-
-If you find PSite helpful, please cite it with the zenodo doi:
-> Hong Zhang, Yue Chang, Tianyu Lei, 2022, [10.5281/zenodo.7046270](https://doi.org/10.5281/zenodo.7046270).
+Please use the [issues](https://github.com/gxelab/psite/issues) panel for questions related to `PSite`, bug reports or feauture fequests. If you find `PSite` helpful, please cite it with the zenodo doi: [10.5281/zenodo.7046270](https://doi.org/10.5281/zenodo.7046270).
