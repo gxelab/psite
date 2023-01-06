@@ -17,7 +17,7 @@ from psite.utils import read_fasta, chunk_iter, rev_comp, CLICK_CS
 @click.option('-i', '--ignore_txversion', is_flag=True, default=False,
               help='whether to ignore trasncript version in ".\d+" format')
 @click.option('-l', '--rlen_min', type=click.INT, default=None,
-              help='lower bound for mapped mapped length')
+              help='lower bound for mapped read length')
 @click.option('-u', '--rlen_max', type=click.INT, default=None,
               help='upper bound for mapped read length')
 @click.option('-c', '--chunk_size', type=click.INT, default=100000,
