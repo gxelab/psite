@@ -264,6 +264,7 @@ def train(path_ref, path_bam, output_prefix, path_txinfo,
     dam = DistArgMax()
     dam.fit(X, y)
     dam.qwidth_range = qwidth_range.to_numpy()
+    dam.nts = nts
     dump(dam, open(f'{output_prefix}.dam.pickle', 'wb'))
 
     gbt = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1,
