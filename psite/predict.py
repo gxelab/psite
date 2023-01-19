@@ -54,7 +54,10 @@ def predict(path_ref, path_bam, path_model, path_out,
         for chunk in chunk_iter(bam, size=chunk_size):
             aligns = list(chunk)
             # filter missing tx
-            aligns = [i for i in aligns if i.reference_name in ref]
+            aligns = [i for i in aligns if (
+                i.reference_name in ref and
+                i.query_alignment_length >= rlen_min and
+                i.query_alignment_length <= rlen_max)]
             if len(aligns) == 0:
                 continue
             qlen = np.zeros(len(aligns), dtype=int)
@@ -85,9 +88,8 @@ def predict(path_ref, path_bam, path_model, path_out,
             
             p_sites = model.predict(batch)
             for p, align in zip(p_sites, aligns):
-                if align.query_alignment_length >= rlen_min and align.query_alignment_length <= rlen_max:
-                    align.set_tag('PS', p, 'i')
-                    output.write(align)
+                align.set_tag('PS', p, 'i')
+                output.write(align)
         output.close()
     return
 
