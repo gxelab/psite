@@ -32,9 +32,7 @@ def bw_write_chrom(bw, chrom, cov):
               help='upper bound for mapped read length')
 @click.option('-q', '--mapq_min', type=click.INT, default=10,
               help='minimum mapping quality')
-@click.option('-i', '--ignore_supp', is_flag=True, default=False,
-              help='whether to ignore supplementary alignments')
-def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10, ignore_supp=True):
+def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10):
     """
     calculate the coverage for plus strand and minus strand seperately
 
@@ -58,7 +56,7 @@ def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10, ignore_sup
         # mapping quality and read length QC
         if align.mapping_quality < mapq_min:
             continue
-        if ignore_supp and align.is_supplementary:
+        if align.is_supplementary:
             continue
         if align.query_alignment_length < rlen_min or align.query_alignment_length > rlen_max:
             continue
