@@ -135,9 +135,9 @@ def extract_features(path_bam, ref, nts=3, frac=1.0):
 @click.option('-e', '--path_exp', type=click.STRING, default=None,
               help='path of transcript expression quant results')
 @click.option('-i', '--ignore_txversion', is_flag=True, default=False,
-              help='whether to ignore trasncript version in ".\d+" format')
+              help='ignore transcript version in ".\d+" format')
 @click.option('-n', '--nts', type=click.INT, default=3,
-              help='fanking nucleotides to consider at each side')
+              help='flanking nucleotides to consider at each side')
 @click.option('-f', '--frac', type=click.FLOAT, default=1.0,
               help='fraction of alignments for training (for large datasets)')
 @click.option('--offset_min', type=click.INT, default=10,
@@ -149,7 +149,7 @@ def extract_features(path_bam, ref, nts=3, frac=1.0):
 @click.option('-m', '--min_samples_split', type=click.INT, default=6,
               help='min number of alignments required to split an internal node')
 @click.option('-k', '--keep', is_flag=True, default=False,
-              help='whether to to keep intermediate results')
+              help='whether to keep intermediate results')
 def train(path_ref, path_bam, output_prefix, path_txinfo,
           type_rep='longest', path_exp=None, ignore_txversion=True,
           nts=3, keep=False, frac=1,  offset_min=11, offset_max=14,

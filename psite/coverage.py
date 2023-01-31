@@ -34,10 +34,10 @@ def bw_write_chrom(bw, chrom, cov):
               help='minimum mapping quality')
 def coverage(path_bam, prefix, rlen_min=25, rlen_max=35, mapq_min=10):
     """
-    calculate the coverage for plus strand and minus strand seperately
+    calculate the coverage for plus strand and minus strand separately
 
     \b
-    path_bam: sorted aligment bam file with the PS tag (for P-site offset)
+    path_bam: sorted alignment bam file with the PS tag (for P-site offset)
     prefix  : output prefix of P-site coverage tracks in bigWig format
     """
     # try to open bam file
