@@ -56,6 +56,7 @@ Commands:
   coverage  calculate the coverage for plus strand and minus strand...
   pbam      generate bam with only P-site regions
   predict   load pre-trained model and predict P-site offsets
+  setp      set global fixed P-site offset tag
   train     train a model for P-site offset prediction
 ```
 
@@ -166,6 +167,24 @@ Options:
   -i, --ignore_supp       whether to ignore supplementary alignments
                           [default: False]
   -h, --help              Show this message and exit.  [default: False]
+```
+
+#### `setp`
+This module sets a global fixed value for the "PS" tag.
+```bash
+$ psite setp -h
+Usage: psite setp [OPTIONS] PATH_BAM PATH_OUT
+
+  set global fixed P-site offset tag
+
+  path_bam   : alignments of RPFs to reference transcriptome
+  path_out   : output path of bam with PS (for P-site) tag
+
+Options:
+  -l, --rlen_min INTEGER     lower bound for mapped read length  [default: 27]
+  -u, --rlen_max INTEGER     upper bound for mapped read length  [default: 35]
+  -n, --nucleotides INTEGER  fixed global offset value  [default: 12]
+  -h, --help                 Show this message and exit.
 ```
 
 ---------------------------------------
