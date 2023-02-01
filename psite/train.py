@@ -145,7 +145,7 @@ def extract_features(path_bam, ref, nts=3, frac=1.0):
 @click.option('--offset_max', type=click.INT, default=14,
               help='upper bound of distance between RPF 5p and start codon')
 @click.option('-d', '--max_depth', type=click.INT, default=3,
-              help='number of threads used for model fitting')
+              help='max depth of trees')
 @click.option('-m', '--min_samples_split', type=click.INT, default=6,
               help='min number of alignments required to split an internal node')
 @click.option('-k', '--keep', is_flag=True, default=False,

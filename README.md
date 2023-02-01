@@ -89,8 +89,7 @@ Options:
                                   start codon  [default: 10]
   --offset_max INTEGER            upper bound of distance between RPF 5p and
                                   start codon  [default: 14]
-  -d, --max_depth INTEGER         number of threads used for model fitting
-                                  [default: 3]
+  -d, --max_depth INTEGER         max depth of trees  [default: 3]
   -m, --min_samples_split INTEGER
                                   min number of alignments required to split
                                   an internal node  [default: 6]
@@ -218,9 +217,9 @@ psite train -i -t salmon -e salmon_results/quant.sf \
     cdna.all.fa.gz sample_RPF.Aligned.toTranscriptome.out.bam output_prefix txinfo.tsv
 ```
 
-Once the model is successfully trained, it can be used to predict P-site offsets for ribosome footprints that are mapped to the reference genome or reference transcriptomes. It should be noted that if you use genome bam for prediction, genomic fasta should be used as input, and vice versa.
-
 Model training is slow for large datasets. `-f` parameter can be used to select only a subset of alignments for training. This can significantly improve speed and reduce memory usage while maintaining similar accuracy.
+
+Once the model is successfully trained, it can be used to predict P-site offsets for ribosome footprints that are mapped to the reference genome or reference transcriptomes. It should be noted that if you use genome bam for prediction, genomic fasta should be used as input, and vice versa.
 
 ```bash
 # with transcriptomic bam
@@ -247,7 +246,7 @@ r10	16	2L	11140	255	32M	*	0	0	TCAGGACTAGTACTCGTTTGCGTCGTATTTCT	FCCHHCHIHIHHE0HHH
 It is also possible to output alignments with P-site locations only, which can be used for downstream applications such as translated ORF prediction with [RibORF](https://github.com/zhejilab/RibORF).
 
 ```bash
-psite pbam -f sam -p2 genome.fa sample_RPF.Aligned.sortedByCoord.out.bam output_prefix.gbt.pickle sample_RPF.genome.psite.sam
+psite pbam -f sam genome.fa sample_RPF.Aligned.sortedByCoord.out.bam output_prefix.gbt.pickle sample_RPF.genome.psite.sam
 ```
 
 Here are a few lines from an example output:
@@ -271,7 +270,7 @@ PSite also has a module for fast calculation of genome or transcriptome P-site c
 samtools sort -@ 8 -O bam -o sample_RPF.genome.tag.sorted.bam sample_RPF.genome.tag.bam
 
 # calculate coverage
-psite coverage -q0 sample_RPF.genome.tag.sorted.bam sample_RPF.psite_cov
+psite coverage sample_RPF.genome.tag.sorted.bam sample_RPF.psite_cov
 ```
 
 NEW: a complete example of how to run PSite and use PSite output for downstream analyses is available from the [repository associated with PSite manuscript](https://github.com/gxelab/psite_analysis).
