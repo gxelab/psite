@@ -214,7 +214,7 @@ The first step is to train a GBT model with `train` module with the transcriptom
 
 ```bash
 psite train -i -t salmon -e salmon_results/quant.sf \
-    cdna.all.fa.gz sample_RPF.Aligned.toTranscriptome.out.bam output_prefix txinfo.tsv
+    all_transcripts.fa sample_RPF.Aligned.toTranscriptome.out.bam output_prefix txinfo.tsv
 ```
 
 Model training is slow for large datasets. `-f` parameter can be used to select only a subset of alignments for training. This can significantly improve speed and reduce memory usage while maintaining similar accuracy.
