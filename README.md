@@ -22,8 +22,13 @@ To demonstrate the usage of the `PS` tag, `PSite` also has a `coverage` module t
 
 
 ### Install and uninstall
-To install `PSite`, download the package [tarball](https://github.com/gxelab/psite/releases) from the release page and run
+To install `PSite`, run
 ```bash
+pip install psite
+```
+
+Alternatively, download the package [tarball](https://github.com/gxelab/psite/releases) from the release page and run
+```
 pip install psite-version-py3-none-any.whl
 ```
 
