@@ -14,7 +14,7 @@ To demonstrate the usage of the `PS` tag, `PSite` also has a `coverage` module t
 - `numpy` >= 1.21.2
 - `pandas` >= 1.3.4
 - `biopython` >= 1.79
-- `sklearn` >= 1.1.1
+- `scikit-learn` >= 1.1.1
 - `pysam` >= 0.17.0
 - `pyBigWig` >= 0.3.18
 - `click` >= 8.1.2
