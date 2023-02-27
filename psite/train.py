@@ -149,7 +149,8 @@ def extract_features(path_bam, ref, nts=3, frac=1.0):
               type=click.Choice(['longest', 'principal', 'kallisto', 'salmon']),
               help='type of representative transcripts')
 @click.option('-e', '--path_exp', type=click.STRING, default=None,
-              help='path of transcript expression quant results')
+              help=('path of transcript expression quantification results (for ' +
+                    '-t kallisto|salmon) or APPRIS info (for -t principal)'))
 @click.option('-i', '--ignore_txversion', is_flag=True, default=False,
               help='ignore transcript version in ".\d+" format')
 @click.option('-n', '--nts', type=click.INT, default=3,
