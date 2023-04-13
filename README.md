@@ -12,7 +12,7 @@ To demonstrate the usage of the `PS` tag, `PSite` also has a `coverage` module t
 
 ### Dependency
 - `numpy` >= 1.21.2
-- `pandas` >= 1.3.4
+- 1.3.4 <= `pandas` < 2.0.0
 - `biopython` >= 1.79
 - `scikit-learn` >= 1.1.1
 - `pysam` >= 0.17.0
