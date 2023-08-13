@@ -283,4 +283,6 @@ NEW: a complete example of how to run PSite and use PSite output for downstream 
 ---------------------------------------
 
 #### Other information
-Please use the [issues](https://github.com/gxelab/psite/issues) panel for questions related to `PSite`, bug reports, or feature requests. If you find `PSite` helpful, please cite it with the zenodo doi: [10.5281/zenodo.7046270](https://doi.org/10.5281/zenodo.7046270).
+Please use the [issues](https://github.com/gxelab/psite/issues) panel for questions related to `PSite`, bug reports, or feature requests. If you use `psite` in your work, you can cite it as follows:
+
+> Chang, Y., Lei, T., Zhang, H., 2023. PSite: inference of read-specific P-site offsets for ribosomal footprints. bioRxiv, 2023.2006.2027.546788. https://doi.org/10.1101/2023.06.27.546788.
