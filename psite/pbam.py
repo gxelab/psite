@@ -86,7 +86,7 @@ def pbam(path_ref, path_bam, path_model, path_out, out_format='bam',
             # index needed for edge case of one-row data frame
             batch = pd.DataFrame({'qwidth': qlen}, index=range(len(qlen)))
             batch = pd.concat([batch, nucs], axis = 1)
-            batch.set_axis(['qwidth'] + nuc_cols, axis=1, inplace=True)
+            batch = batch.set_axis(['qwidth'] + nuc_cols, axis=1)
             for i in nuc_cols:
                 batch.loc[:, i] = pd.Categorical(batch[i], categories=['A', 'C', 'G', 'T'])
             batch = pd.get_dummies(batch, drop_first=True)
