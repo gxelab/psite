@@ -198,6 +198,8 @@ def train(path_ref, path_bam, output_prefix, path_txinfo,
 
     print('# ...load gene information', file=log)
     tx_info = read_txinfo(path_txinfo, '\t')
+    if ignore_txversion:
+        tx_info['tx_name'] = tx_info['tx_name'].map(strip_version)
     
     # exclude MT and fly transposable elements
     tx_info = tx_info[~tx_info.chrom.isin(['MT', 'mitochondrion_genome'])]
