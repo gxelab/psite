@@ -202,7 +202,7 @@ def train(path_ref, path_bam, output_prefix, path_txinfo,
         tx_info['tx_name'] = tx_info['tx_name'].map(strip_version)
     
     # exclude MT and fly transposable elements
-    tx_info = tx_info[~tx_info.chrom.isin(['MT', 'mitochondrion_genome'])]
+    tx_info = tx_info[~tx_info.chrom.isin(['MT', 'mitochondrion_genome', 'chrM'])]
     if (tx_info.gene_id.str.startswith('FBgn')).sum() > 0:
         tx_info = tx_info[tx_info.gene_id.str.startswith('FBgn')]
     
